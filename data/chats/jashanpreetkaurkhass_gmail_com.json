@@ -1,0 +1,61 @@
+{
+  "messages": [
+    {
+      "id": 1,
+      "timestamp": "2026-08-24T15:58:40.332148",
+      "message": "Landlord not returning security deposit",
+      "response_preview": "It sounds like your landlord is not returning the security deposit after your tenancy has ended, whi",
+      "category": "landlord",
+      "mode": "both"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-08-24T15:59:47.790017",
+      "message": "what is law",
+      "response_preview": "Law, in simple terms, is a system of rules that a country or community recognizes as regulating the ",
+      "category": "default",
+      "mode": "both"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-08-24T16:06:37.045846",
+      "message": "what is law",
+      "response_preview": "Hello! It looks like you're asking for a basic understanding of what \"law\" means. This is a foundati",
+      "category": "default",
+      "mode": "both"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-08-24T16:06:37.646670",
+      "message": "what is law",
+      "response_preview": "Hello! It looks like you're asking for a basic understanding of what \"law\" means. This is a foundati",
+      "category": "default",
+      "mode": "both"
+    },
+    {
+      "id": 5,
+      "timestamp": "2026-08-24T16:30:35.091937",
+      "message": "law kya hota ha",
+      "response_preview": "Hello! It sounds like you're trying to understand the basic concept of \"law.\" This is a fundamental ",
+      "category": "default",
+      "mode": "both"
+    },
+    {
+      "id": 6,
+      "timestamp": "2026-08-24T16:31:18.658946",
+      "message": "what is law",
+      "response_preview": "**\u2696\ufe0f General Legal Guidance**\n\n\u2696 Applicable Laws:\n\u2022 Constitution of India \u2013 Fundamental Rights Art 1",
+      "category": "default",
+      "mode": "both"
+    },
+    {
+      "id": 7,
+      "timestamp": "2026-08-24T16:41:05.194597",
+      "message": "Landlord not returning security deposit",
+      "response_preview": "**\ud83c\udfe0 Landlord / Rent Dispute**\n\n\u2696 Applicable Laws:\n\u2022 Transfer of Property Act 1882\n\u2022 State Rent Contr",
+      "category": "landlord",
+      "mode": "both"
+    }
+  ],
+  "sessions": []
+}
