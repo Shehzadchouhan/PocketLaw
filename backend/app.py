@@ -1058,6 +1058,12 @@ def gen_fir(d):
     district = d.get('district','[District]')
     state = d.get('state','[State]')
     fir_no = f"{station[0:3].upper()}/{yr}/{district[0:3].upper()}/{(datetime.now().strftime('%j'))}"
+    default_witnesses = "1. [Name, Address, Phone]\n2. [Name, Address, Phone]"
+    default_evidence = "1. [Document Name & Description]\n2. [Document Name & Description]\n3. [Photographs/CCTV Footage etc.]"
+    default_relief = "1. Immediate investigation into the matter\n2. Registration of FIR and legal action against accused\n3. Recovery of the property/amount involved\n4. Any other relief deemed fit"
+    witnesses_val = d.get('witnesses', default_witnesses)
+    evidence_val = d.get('evidence', default_evidence)
+    relief_val = d.get('relief', default_relief)
     return f"""
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                         FIRST INFORMATION REPORT                           ║
@@ -1130,7 +1136,7 @@ as follows:
 
 The following persons have witnessed the incident and may be examined:
 
-{d.get('witnesses','1. [Name, Address, Phone]\\n2. [Name, Address, Phone]')}
+{witnesses_val}
 
 ═══════════════════════════════════════════════════════════════════════════════
                           LIST OF EVIDENCE / DOCUMENTS
@@ -1138,7 +1144,7 @@ The following persons have witnessed the incident and may be examined:
 
 I am enclosing/producing the following documents as evidence:
 
-{d.get('evidence','1. [Document Name & Description]\\n2. [Document Name & Description]\\n3. [Photographs/CCTV Footage etc.]')}
+{evidence_val}
 
 ═══════════════════════════════════════════════════════════════════════════════
                           PROVISIONS OF LAW INVOKED
@@ -1152,7 +1158,7 @@ I am enclosing/producing the following documents as evidence:
                               RELIEF SOUGHT
 ═══════════════════════════════════════════════════════════════════════════════
 
-{d.get('relief','1. Immediate investigation into the matter\\n2. Registration of FIR and legal action against accused\\n3. Recovery of the property/amount involved\\n4. Any other relief deemed fit')}
+{relief_val}
 
 ═══════════════════════════════════════════════════════════════════════════════
                                DECLARATION

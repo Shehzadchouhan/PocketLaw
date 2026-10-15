@@ -35,6 +35,8 @@ def format_fir_text(d):
     district = d.get("district", "Ludhiana").strip() or "Ludhiana"
     state = d.get("state", "Punjab").strip() or "Punjab"
     station = d.get("station", "[Police Station]").strip() or "[Police Station]"
+    default_evidence = "1. Transaction slips / Bank statements\n2. Chat / SMS screenshots\n3. Call logs\n4. Any other documentary proof"
+    evidence_val = d.get('evidence', default_evidence)
 
     return f"""================================================================================
           FORM NO. 1 - FIRST INFORMATION REPORT (INFORMAL DRAFT)
@@ -83,7 +85,7 @@ SUBJECT    : Complaint / Request for Registration of FIR regarding {d.get('crime
 --------------------------------------------------------------------------------
 5. DETAILS OF EVIDENCE ENCLOSED:
 --------------------------------------------------------------------------------
-{d.get('evidence', '1. Transaction slips / Bank statements\\n2. Chat / SMS screenshots\\n3. Call logs\\n4. Any other documentary proof')}
+{evidence_val}
 
 --------------------------------------------------------------------------------
 6. WITNESS PARTICULARS (IF ANY):
@@ -285,6 +287,10 @@ def format_complaint_text(d):
     district = d.get("district", "Ludhiana").strip() or "Ludhiana"
     state = d.get("state", "Punjab").strip() or "Punjab"
     amount = d.get("amount", "0").strip() or "0"
+    default_relief = f"Refund the entire amount of Rs. {amount}/- along with interest @ 18% p.a."
+    relief_val = d.get('relief', default_relief)
+    default_docs = "1. Copy of Tax Invoice / Purchase Receipt\n2. Warranty Card\n3. Email communications & Proof of notice served\n4. Photographs / Screenshots of defective product"
+    docs_val = d.get('documents', default_docs)
 
     return f"""================================================================================
                    FORMAL CONSUMER COMPLAINT
@@ -347,14 +353,14 @@ MOST RESPECTFULLY SHOWETH:
 5. PRAYER / RELIEF SOUGHT:
    It is therefore most respectfully prayed that this Hon'ble Commission may be
    pleased to direct the Opposite Party to:
-   (a) {d.get('relief', f'Refund the entire amount of Rs. {amount}/- along with interest @ 18% p.a.')};
+   (a) {relief_val};
    (b) Pay a sum of Rs. 25,000/- as compensation for mental agony, harassment, and
        hardship suffered by the Complainant;
    (c) Pay Rs. 10,000/- towards litigation costs incurred by the Complainant;
    (d) Grant any other or further relief as this Hon'ble Commission may deem fit.
 
 6. LIST OF ENCLOSURES / EVIDENCE:
-{d.get('documents', '1. Copy of Tax Invoice / Purchase Receipt\\n2. Warranty Card\\n3. Email communications & Proof of notice served\\n4. Photographs / Screenshots of defective product')}
+{docs_val}
 
 --------------------------------------------------------------------------------
                                  VERIFICATION
