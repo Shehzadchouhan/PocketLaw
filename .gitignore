@@ -17,3 +17,9 @@ frontend/build/
 # IDE
 .vscode/
 .idea/
+
+# Database temporary files & logs
+*.db-wal
+*.db-shm
+*.log
+test_consultation.pdf
