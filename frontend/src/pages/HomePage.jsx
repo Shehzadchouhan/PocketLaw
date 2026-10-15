@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { chatAPI, saveChatAPI } from "../services/api";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { chatAPI, saveChatAPI, dlConsultation } from "../services/api";
 
 const QUICK = [
   "Landlord not returning security deposit",
@@ -215,6 +215,19 @@ function AnalysisCard({ data, query, lang = "en" }) {
             }
           }}><i className="fas fa-volume-high" /> {t("readAloud")}</button>
           <button className="btn btn-info btn-sm" onClick={() => nav(`/rag?q=${encodeURIComponent(analysis.title)}`)}><i className="fas fa-database" /> {t("deepRag")}</button>
+          <button className="btn btn-o btn-sm" onClick={async () => {
+            try {
+              await dlConsultation({
+                question: query,
+                message: query,
+                response: data.gemini_answer || analysis.laws.join("\n"),
+                category: analysis.title,
+                timestamp: meta?.timestamp || new Date().toISOString()
+              });
+            } catch (err) {
+              alert("Failed to export PDF report");
+            }
+          }} title="Export consultation report as PDF"><i className="fas fa-file-pdf" style={{ color: "var(--gold)" }} /> Export PDF</button>
         </div>
         <p className="res-foot">
           RAG: {meta.rag_chunks} {t("chunks")} · {meta.total_cases} {t("scCasesFull")} · {new Date(meta.timestamp).toLocaleTimeString()}
@@ -236,8 +249,18 @@ export default function HomePage({ lang = "en" }) {
   const msgsRef = useRef(null);
   const recRef = useRef(null);
   const taRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const qHandledRef = useRef(null);
 
   useEffect(() => { if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight; }, [msgs, loading]);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && q !== qHandledRef.current) {
+      qHandledRef.current = q;
+      send(q);
+    }
+  }, [searchParams]);
 
   const send = async (txt) => {
     const msg = txt || input.trim();

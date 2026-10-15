@@ -21,6 +21,11 @@ app.secret_key = os.urandom(24).hex()
 # ── Paths ───────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Database & Document Engines ──────────────────
+import database
+import document_generator as dg
+database.init_db()
+
 # ── JWT Auth Config ─────────────────────────────
 # Keep tokens valid across serverless invocations. Set JWT_SECRET in production
 # to replace the development fallback with a private deployment secret.
@@ -41,16 +46,40 @@ os.makedirs(RUNTIME_DIR, exist_ok=True)
 os.makedirs(CHATS_DIR, exist_ok=True)
 
 def load_users():
+    session = database.db_session()
+    try:
+        db_users = session.query(database.User).all()
+        if db_users:
+            return {
+                u.email: {
+                    "password": u.password_hash,
+                    "name": u.name,
+                    "created_at": u.created_at.isoformat() if u.created_at else "",
+                    "user_id": u.user_id,
+                    "bio": u.bio or "",
+                    "avatar_url": u.avatar_url or "",
+                    "role": u.role or "user"
+                }
+                for u in db_users
+            }
+    except Exception as e:
+        pass
+    finally:
+        session.close()
+
     users = {}
     for path in (SEED_USERS_FILE, USERS_FILE):
         if os.path.exists(path):
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 users.update(json.load(f))
     return users
 
 def save_users(users):
-    with open(USERS_FILE, 'w') as f:
-        json.dump(users, f, indent=2)
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users, f, indent=2)
+    except Exception:
+        pass
 
 def create_jwt(user_id):
     header = base64.b64encode(json.dumps({"alg": JWT_ALGO, "typ": "JWT"}).encode()).decode().rstrip("=")
@@ -131,25 +160,19 @@ def register():
     if "@" not in email:
         return jsonify({"error": "Invalid email"}), 400
     
-    users = load_users()
-    if email in users:
+    existing = database.get_user_by_email(email)
+    if existing:
         return jsonify({"error": "Email already registered"}), 409
     
-    users[email] = {
-        "password": hash_password(password),
-        "name": name,
-        "created_at": datetime.now().isoformat(),
-        "user_id": email.replace("@", "_").replace(".", "_")
-    }
-    save_users(users)
-    
-    user_id = users[email]["user_id"]
-    token = create_jwt(user_id)
+    u_id = email.replace("@", "_").replace(".", "_")
+    pw_hash = hash_password(password)
+    user_dict = database.create_user(email=email, password_hash=pw_hash, name=name, user_id=u_id)
+    token = create_jwt(u_id)
     
     return jsonify({
         "message": "Account created successfully",
         "token": token,
-        "user": {"email": email, "name": name, "user_id": user_id}
+        "user": {"email": email, "name": name, "user_id": u_id}
     }), 201
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -161,49 +184,45 @@ def login():
     if not email or not password:
         return jsonify({"error": "Email and password required"}), 400
     
-    users = load_users()
-    if email not in users:
+    user = database.get_user_by_email(email)
+    if not user:
         return jsonify({"error": "Invalid email or password"}), 401
     
-    user = users[email]
-    if not check_password(password, user["password"]):
+    if not check_password(password, user.password_hash):
         return jsonify({"error": "Invalid email or password"}), 401
     
-    token = create_jwt(user["user_id"])
+    token = create_jwt(user.user_id)
     
     return jsonify({
         "message": "Login successful",
         "token": token,
-        "user": {"email": email, "name": user["name"], "user_id": user["user_id"]}
+        "user": {"email": email, "name": user.name, "user_id": user.user_id}
     })
 
 @app.route("/api/auth/me")
 @require_auth
 def get_me(user_id):
-    users = load_users()
-    for email, user in users.items():
-        if user["user_id"] == user_id:
-            return jsonify({"user": {"email": email, "name": user["name"], "user_id": user_id}})
+    user = database.get_user_by_id(user_id)
+    if user:
+        return jsonify({"user": {"email": user.email, "name": user.name, "user_id": user.user_id}})
     return jsonify({"error": "User not found"}), 404
-
 
 # ── Profile Routes ─────────────────────────────────
 @app.route("/api/profile")
 @require_auth
 def get_profile(user_id):
-    users = load_users()
-    for email, user in users.items():
-        if user.get("user_id") == user_id:
-            profile = {
-                "email": email,
-                "name": user.get("name", ""),
-                "user_id": user_id,
-                "bio": user.get("bio", ""),
-                "avatar_url": user.get("avatar_url", "")
-            }
-            return jsonify({"profile": profile})
+    user = database.get_user_by_id(user_id)
+    if user:
+        profile = {
+            "email": user.email,
+            "name": user.name or "",
+            "user_id": user.user_id,
+            "bio": user.bio or "",
+            "avatar_url": user.avatar_url or "",
+            "role": user.role or "user"
+        }
+        return jsonify({"profile": profile})
     return jsonify({"error": "User not found"}), 404
-
 
 @app.route("/api/profile", methods=["PUT"])
 @require_auth
@@ -213,18 +232,42 @@ def update_profile(user_id):
     bio = data.get("bio")
     avatar_url = data.get("avatar_url")
 
-    users = load_users()
-    for email, user in users.items():
-        if user.get("user_id") == user_id:
-            if name:
-                user["name"] = name
-            if bio is not None:
-                user["bio"] = bio
-            if avatar_url is not None:
-                user["avatar_url"] = avatar_url
-            save_users(users)
-            return jsonify({"message": "Profile updated", "profile": {"email": email, "name": user.get("name"), "user_id": user_id, "bio": user.get("bio", ""), "avatar_url": user.get("avatar_url", "")}})
+    updated = database.update_user_profile(user_id, name=name, bio=bio, avatar_url=avatar_url)
+    if updated:
+        return jsonify({
+            "message": "Profile updated",
+            "profile": {
+                "email": updated["email"],
+                "name": updated["name"],
+                "user_id": updated["user_id"],
+                "bio": updated["bio"],
+                "avatar_url": updated["avatar_url"]
+            }
+        })
     return jsonify({"error": "User not found"}), 404
+
+@app.route("/api/auth/change-password", methods=["POST"])
+@require_auth
+def change_password(user_id):
+    data = request.get_json() or {}
+    old_pw = data.get("current_password", "").strip()
+    new_pw = data.get("new_password", "").strip()
+
+    if not old_pw or not new_pw:
+        return jsonify({"error": "Current and new password are required"}), 400
+    if len(new_pw) < 6:
+        return jsonify({"error": "New password must be at least 6 characters"}), 400
+
+    user = database.get_user_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if not check_password(old_pw, user.password_hash):
+        return jsonify({"error": "Current password is incorrect"}), 401
+
+    new_hash = hash_password(new_pw)
+    database.update_user_profile(user_id, password_hash=new_hash)
+    return jsonify({"message": "Password updated successfully"})
 
 @app.route("/api/auth/logout", methods=["POST"])
 @require_auth
@@ -235,7 +278,7 @@ def logout(user_id):
 @app.route("/api/chats", methods=["GET"])
 @require_auth
 def get_chats(user_id):
-    data = load_chats(user_id)
+    data = database.get_user_chats(user_id)
     return jsonify(data)
 
 @app.route("/api/chats/save", methods=["POST"])
@@ -244,24 +287,17 @@ def save_chat(user_id):
     data = request.get_json() or {}
     msg = data.get("message", "")
     response = data.get("response", {})
-    
-    chat_data = load_chats(user_id)
-    chat_data["messages"].append({
-        "id": len(chat_data["messages"]) + 1,
-        "timestamp": datetime.now().isoformat(),
-        "message": msg,
-        "response_preview": response.get("gemini_answer", "")[:100] if response else "",
-        "category": response.get("detected_problem", ""),
-        "mode": data.get("mode", "both")
-    })
-    save_chats(user_id, chat_data)
-    
-    return jsonify({"message": "Chat saved successfully", "count": len(chat_data["messages"])})
+    preview = response.get("gemini_answer", "")[:100] if response else ""
+    cat = response.get("detected_problem", "") if response else ""
+    mode = data.get("mode", "both")
+
+    res = database.save_user_chat(user_id, msg, response_preview=preview, category=cat, mode=mode)
+    return jsonify({"message": "Chat saved successfully", "count": res.get("count", 1)})
 
 @app.route("/api/chats/clear", methods=["POST"])
 @require_auth
 def clear_chats(user_id):
-    save_chats(user_id, {"messages": [], "sessions": []})
+    database.clear_user_chats(user_id)
     return jsonify({"message": "Chat history cleared"})
 
 
@@ -367,7 +403,7 @@ def rag_retrieve(query, top_k=5, filter_type=None):
         chunk = CHUNKS[idx]
         if filter_type and chunk["case_type"] != filter_type:
             continue
-        if sims[idx] < 0.25:
+        if sims[idx] < 0.05:
             continue
         results.append({
             "text": chunk["text"],
@@ -389,7 +425,7 @@ def rag_answer(query, chunks):
         return "No relevant cases found in the database for your query."
     
     # Strictly extractive QA - verbatim text only, NO generation
-    confident = [c for c in chunks if c["score"] > 0.3]
+    confident = [c for c in chunks if c["score"] > 0.08]
     if not confident:
         best = chunks[0]
         return f"From {best['source']} ({best['year']}):\n\n{best['text'][:500]}"
@@ -449,231 +485,567 @@ def web_search(query, num=5):
     except Exception as e:
         return [{"snippet": f"Web search unavailable: {str(e)[:100]}"}]
 
-# ── AI Answer Generator (uses Gemini if available, else builds from KB + web) ─────
+# ── AI Answer Generator (Hybrid: Gemini if configured, else offline KB + RAG) ─────
 def get_ai_summary(message, kb, rag_text, web_results, lang="en"):
     """
-    Uses Gemini for AI summary if API key is available.
-    Fallback: builds a useful answer from Knowledge Base + web search + RAG context.
+    Hybrid Legal Synthesizer:
+    - If Gemini API is available, synthesizes natural legal guidance strictly grounded
+      on retrieved Supreme Court chunks and Indian statutes (zero hallucination).
+    - If offline / no API key, seamlessly builds an extractive structured answer
+      from Knowledge Base + RAG context + Web sources.
     Supports multi-language: en, hi, pa, ur, hx (Hinglish).
     """
-    lang_map = {"en":"English","hi":"Hindi (Devanagari)","pa":"Punjabi (Gurmukhi)","ur":"Urdu (Perso-Arabic)","hx":"Hinglish (natural Hindi+English mix)"}
+    lang_map = {
+        "en": "English",
+        "hi": "Hindi (Devanagari)",
+        "pa": "Punjabi (Gurmukhi)",
+        "ur": "Urdu (Perso-Arabic)",
+        "hx": "Hinglish (natural Hindi+English mix)"
+    }
     target_lang = lang_map.get(lang, "English")
     
-    # External LLMs (Gemini) are disabled per user request — always use local fallback generation only.
-    # This avoids requiring any extra API keys or external service.
+    # ── Attempt Grounded Gemini Synthesis if configured ──
+    if is_gemini_available():
+        try:
+            grounding_prompt = f"""You are PocketLaw AI, a professional Indian legal intelligence assistant.
+A citizen has presented this legal problem:
+"{message}"
 
-    # ── Fallback: Build answer from KB + web results (NO hallucination) ──
-    steps_text = "\n".join(f"\u2022 {s}" for s in kb.get("steps", []))
-    rights_text = "\n".join(f"\u2022 {r}" for r in kb.get("rights", []))
-    laws_text = "\n".join(f"\u2022 {l}" for l in kb.get("laws", []))
-    helplines_text = "\n".join(f"\u2022 {h}" for h in kb.get("helplines", []))
-    
-    # Use web results as open source info
-    web_extra = ""
-    if web_results:
-        snippets = [r.get('snippet','')[:200] for r in web_results[:3] if r.get('snippet')]
-        if snippets:
-            web_extra = "\n\U0001f310 **Open Web Sources:**\n" + "\n".join(f"\u2022 {s}" for s in snippets)
-    
-    # Use RAG context from PDFs when available
-    rag_extra = ""
-    if rag_text and "No relevant" not in rag_text:
-        rag_extra = "\n\U0001f4c4 **From Supreme Court Judgment Database:**\n" + rag_text[:400]
-    
-    # Translate section headers for small set of supported languages
-    labels = {
+Authoritative legal knowledge and Supreme Court context:
+- Legal Domain / Issue: {kb.get('title', 'Legal Matter')}
+- Applicable Statutes: {', '.join(kb.get('laws', []))}
+- Citizen Legal Rights: {', '.join(kb.get('rights', []))}
+- Immediate Steps to Take: {', '.join(kb.get('steps', []))}
+- Official Helplines: {', '.join(kb.get('helplines', []))}
+- Supreme Court Precedent Context:
+{rag_text[:600] if rag_text and "No relevant" not in rag_text else "General Supreme Court principles on natural justice and statutory remedies apply."}
+
+INSTRUCTIONS:
+1. Provide a concise, professional executive legal assessment in {target_lang} (1-2 clear paragraphs).
+2. Synthesize how Indian law, modern criminal codes (BNS 2023 / BNSS 2023 where applicable), and Supreme Court principles apply to this situation.
+3. CRITICAL: DO NOT dump raw bulleted lists of laws, rights, steps, or helplines, because those exact bullet items are already rendered in dedicated interactive cards directly beneath your message. Focus purely on insightful legal analysis, judicial reasoning, and practical perspective.
+4. End with: "*Review your matched statutory sections, constitutional rights, survival steps, and helplines organized in the cards below.*"
+5. Do NOT hallucinate facts outside Indian law."""
+
+            ai_output = get_gemini_response(grounding_prompt)
+            if ai_output and len(ai_output.strip()) > 80:
+                return ai_output.strip()
+        except Exception:
+            pass
+
+    # ── Local Deterministic Fallback: Executive Analysis + SC Precedents (100% Offline) ──
+    # Synthesizes an executive narrative and judicial context without repeating the
+    # raw bullet points that are already rendered in the dedicated cards below.
+    first_law = kb.get('laws', ['Indian statutory law'])[0]
+    narratives = {
         'en': {
-            'applicable': '\u2696 Applicable Laws:',
-            'rights': '\U0001f6e1 Your Rights:',
-            'steps': '\U0001f9ed Steps to Take:',
-            'helplines': '\U0001f4de Helplines:',
-            'caution': '\u26a0\ufe0f *This is informational guidance only. Please consult a qualified lawyer for advice specific to your situation.*'
+            'overview': f"Based on Indian statutory law and judicial precedents regarding **{kb.get('title', 'this legal matter')}**, established procedural remedies and legal safeguards are available under modern legislation.",
+            'principles': f"The legal framework governing this issue balances statutory rights with procedural fairness. Key provisions under {first_law} provide the primary statutory framework for relief.",
+            'rag_head': "📄 **From Supreme Court Judgment Database:**",
+            'web_head': "🌐 **Related Public Resources:**",
+            'pointer': "*Review your matched statutory sections, constitutional rights, survival steps, and helplines organized in the cards below.*"
         },
         'hi': {
-            'applicable': '\u2696 लागू कानून:',
-            'rights': '\U0001f6e1 आपके कानूनी अधिकार:',
-            'steps': '\U0001f9ed करने के कदम:',
-            'helplines': '\U0001f4de हेल्पलाइन:',
-            'caution': '\u26a0\ufe0f *यह केवल सूचना के उद्देश्य से है। कृपया अपने मामले के लिए किसी योग्य वकील से सलाह लें।*'
+            'overview': f"**{kb.get('title', 'इस कानूनी मामले')}** के संबंध में भारतीय कानूनों और अदालती फैसलों के अनुसार आपके पास वैधानिक अधिकार और प्रक्रियात्मक उपाय उपलब्ध हैं।",
+            'principles': f"इस मामले में मुख्य राहत और कानूनी प्रक्रिया {first_law} के प्रावधानों द्वारा नियंत्रित होती है।",
+            'rag_head': "📄 **सर्वोच्च न्यायालय के मुख्य निर्णय (Supreme Court Precedents):**",
+            'web_head': "🌐 **संबंधित सार्वजनिक स्रोत:**",
+            'pointer': "*लागू धाराएं, आपके अधिकार, जरूरी कदम और हेल्पलाइन नीचे दिए गए कार्ड्स में देखें।*"
         },
         'pa': {
-            'applicable': '\u2696 ਲਾਗੂ ਕਾਨੂੰਨ:',
-            'rights': '\U0001f6e1 ਤੁਹਾਡੇ ਕਾਨੂੰਨੀ ਅਧਿਕਾਰ:',
-            'steps': '\U0001f9ed ਕੀ ਕਰਨ ਦੇ ਕਦਮ:',
-            'helplines': '\U0001f4de ਹੈਲਪਲਾਈਨ:',
-            'caution': '\u26a0\ufe0f *ਇਹ ਸਿਰਫ਼ ਜਾਣਕਾਰੀ ਲਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਕੇਸ ਲਈ ਕਿਸੇ ਯੋਗ ਵਕੀਲ ਨਾਲ 상담 ਕਰੋ।*'
+            'overview': f"**{kb.get('title', 'ਇਸ ਕਾਨੂੰਨੀ ਮਾਮਲੇ')}** ਬਾਰੇ ਭਾਰਤੀ ਕਾਨੂੰਨਾਂ ਅਤੇ ਸੁਪਰੀਮ ਕੋਰਟ ਦੇ ਫੈਸਲਿਆਂ ਅਨੁਸਾਰ ਤੁਹਾਡੇ ਕੋਲ ਕਾਨੂੰਨੀ ਅਧਿਕਾਰ ਅਤੇ ਉਪਾਅ ਮੌਜੂਦ ਹਨ।",
+            'principles': f"ਇਸ ਮਾਮਲੇ ਵਿੱਚ ਕਾਨੂੰਨੀ ਕਾਰਵਾਈ ਅਤੇ ਰਾਹਤ ਮੁੱਖ ਤੌਰ 'ਤੇ {first_law} ਦੇ ਉਪਬੰਧਾਂ ਅਧੀਨ ਆਉਂਦੀ ਹੈ।",
+            'rag_head': "📄 **ਮੁੱਖ ਅਦਾਲਤੀ ਫੈਸਲੇ (Supreme Court Context):**",
+            'web_head': "🌐 **ਸੰਬੰਧਿਤ ਸਰੋਤ:**",
+            'pointer': "*ਲਾਗੂ ਧਾਰਾਵਾਂ, ਅਧਿਕਾਰ, ਕਦਮ ਅਤੇ ਹੈਲਪਲਾਈਨ ਹੇਠਾਂ ਦਿੱਤੇ ਕਾਰਡਾਂ ਵਿੱਚ ਦੇਖੋ।*"
         },
         'ur': {
-            'applicable': '\u2696 قابل اطلاق قوانین:',
-            'rights': '\U0001f6e1 آپ کے قانونی حقوق:',
-            'steps': '\U0001f9ed کرنے کے اقدامات:',
-            'helplines': '\U0001f4de ہیلپ لائنز:',
-            'caution': '\u26a0\ufe0f *یہ صرف معلوماتی مقاصد کے لئے ہے۔ براہِ کرم اپنے معاملے کے لئے کسی اہل وکیل سے مشورہ کریں۔*'
+            'overview': f"**{kb.get('title', 'اس قانونی معاملے')}** کے حوالے سے ہندوستانی قوانین اور سپریم کورٹ کے فیصلوں کے مطابق آپ کے پاس قانونی حقوق اور چارہ جوئی دستیاب ہے۔",
+            'principles': f"اس ضمن میں بنیادی راحت اور قانونی کارروائی {first_law} کے تحت فراہم کی جاتی ہے۔",
+            'rag_head': "📄 **اہم عدالتی نظائر (Supreme Court):**",
+            'web_head': "🌐 **متعلقہ ذرائع:**",
+            'pointer': "*متعلقہ دفعات، حقوق، اقدامات اور ہیلپ لائنز نیچے کارڈز میں دیکھیں۔*"
         },
         'hx': {
-            'applicable': '\u2696 लागू कानून / Applicable Laws:',
-            'rights': '\U0001f6e1 आपके अधिकार / Your Rights:',
-            'steps': '\U0001f9ed कदम / Steps:',
-            'helplines': '\U0001f4de हेल्पलाइन / Helplines:',
-            'caution': '\u26a0\ufe0f *यह सूचना मात्र है — कृपया वकील से सलाह लें।*'
+            'overview': f"**{kb.get('title', 'इस मामले')}** mein Indian statutory provisions aur court rulings ke mutabiq aapke paas legitimate legal rights aur procedural remedies available hain.",
+            'principles': f"Is issue mein main relief aur legal procedure {first_law} ke under govern hota hai.",
+            'rag_head': "📄 **Supreme Court Precedent Context:**",
+            'web_head': "🌐 **Web Resources:**",
+            'pointer': "*Applicable sections, rights, steps aur helplines niche cards mein dekhein.*"
         }
     }
 
-    lbl = labels.get(lang, labels['en'])
+    n = narratives.get(lang, narratives['en'])
+    parts = [
+        f"**{kb.get('icon', '⚖️')} {kb.get('title', 'Legal Guidance')}**\n\n{n['overview']}\n\n{n['principles']}"
+    ]
 
-    answer = f"""**{kb.get('icon', '\u2696\ufe0f')} {kb.get('title', 'Legal Guidance')}**\n\n{kb.get('summary', '')}\n\n{lbl['applicable']}\n{laws_text}\n\n{lbl['rights']}\n{rights_text}\n\n{lbl['steps']}\n{steps_text}\n{web_extra}\n{rag_extra}\n\n{lbl['helplines']}\n{helplines_text}\n\n{lbl['caution']}"""
+    if rag_text and "No relevant" not in rag_text:
+        parts.append(f"{n['rag_head']}\n{rag_text[:450].strip()}")
 
-    return answer.strip()
+    if web_results:
+        snippets = [r.get('snippet', '')[:180] for r in web_results[:2] if r.get('snippet')]
+        if snippets:
+            parts.append(f"{n['web_head']}\n" + "\n".join(f"• {s}" for s in snippets))
 
-# ── Legal Knowledge Base ─────────────────────────
+    parts.append(n['pointer'])
+    return "\n\n".join(parts)
+
+# ── Legal Knowledge Base (Cross-Mapped: BNS 2023 & IPC/CrPC) ─────────────────
 KB = {
     "fraud": {
         "title": "Online Fraud / Cyber Crime",
         "icon": "🔐",
-        "laws": ["IT Act 2000 – Sec 66C (Identity Theft)", "IT Act – Sec 66D (Impersonation)", "IPC Section 420 (Cheating)", "IPC Section 406 (Criminal Breach of Trust)"],
-        "rights": ["File complaint at cybercrime.gov.in immediately", "Right to full compensation", "Bank must refund unauthorized transactions", "Right to FIR registration"],
-        "steps": ["Call bank immediately to freeze/block account", "File at cybercrime.gov.in (Cyber Crime Portal)", "Visit Cyber Crime Police Station", "Preserve all screenshots, transaction IDs", "File FIR under IPC 420 + IT Act 66C/D"],
-        "helplines": ["Cyber Crime: 1930", "Portal: cybercrime.gov.in"],
-        "sr": 58, "dur": "3–8 months", "risk": "Low–Medium"
+        "laws": [
+            "BNS 2023 Sec 318(4) – Cheating & Fraud (ex-IPC 420)",
+            "BNS 2023 Sec 316 – Criminal Breach of Trust (ex-IPC 406)",
+            "IT Act 2000 – Sec 66C (Identity Theft / Phishing)",
+            "IT Act 2000 – Sec 66D (Cheating by Impersonation using Computer)"
+        ],
+        "rights": ["Immediate Golden-Hour complaint at cybercrime.gov.in (Toll-Free 1930)", "Right to complete bank reversal of unauthorized transactions within 3 days", "Mandatory FIR registration under Section 173 BNSS (Zero FIR anywhere)", "Right to seek compensation under IT Act Adjudicating Officer"],
+        "steps": ["Call 1930 immediately within 2 hours to freeze recipient financial trail", "Report incident on National Cybercrime Reporting Portal (cybercrime.gov.in)", "Visit Cyber Crime Police Station / Local PS to file Zero FIR", "Preserve transaction IDs, SMS alerts, UPI handles, and call recordings", "Submit written dispute letter to home bank branch with FIR acknowledgment copy"],
+        "helplines": ["Cyber Crime Helpline: 1930", "Portal: cybercrime.gov.in", "RBI Ombudsman: 14448"],
+        "sr": 62, "dur": "2–6 months", "risk": "Low–Medium"
     },
     "landlord": {
-        "title": "Landlord / Rent Dispute",
+        "title": "Landlord / Tenant Rent Dispute",
         "icon": "🏠",
-        "laws": ["Transfer of Property Act 1882", "State Rent Control Acts", "Consumer Protection Act 2019", "IPC 420 (if deposit fraud)"],
-        "rights": ["Deposit refund within agreed period", "1-month eviction notice mandatory", "Remain in property until court order", "Approach Rent Control Court"],
-        "steps": ["Collect rent receipts, lease agreement", "Send legal notice via registered post", "File in Rent Control Court or Civil Court", "Consumer Forum if registered housing"],
-        "helplines": ["Legal Aid: 15100 (NALSA)", "Consumer: 1800-11-4000"],
-        "sr": 68, "dur": "4–12 months", "risk": "Low"
+        "laws": [
+            "Transfer of Property Act 1882 – Section 106 (Notice of Termination)",
+            "State Rent Control Acts (Model Tenancy Act 2021)",
+            "Consumer Protection Act 2019 (Applicable for registered property brokers / societies)",
+            "BNS 2023 Sec 318 – Cheating (ex-IPC 420, if deposit fraudulently misappropriated)"
+        ],
+        "rights": ["Refund of entire security deposit upon peaceful handover of premises", "Mandatory 30-day written eviction notice requirement prior to eviction", "Protection against unlawful utility disconnection (water/electricity)", "Right to remain in possession until lawful order of Rent Controller / Civil Court"],
+        "steps": ["Gather lease agreement, rent receipts, bank payment statements, and handover videos", "Serve formal Section 80 CPC style Legal Notice via Registered Speed Post granting 15 days", "Approach Rent Authority / Rent Tribunal under State Tenancy Act", "If commercial or broker dispute, file Consumer Complaint on edaakhil.nic.in"],
+        "helplines": ["NALSA Free Legal Aid: 15100", "National Consumer Helpline: 1915 / 1800-11-4000"],
+        "sr": 70, "dur": "3–9 months", "risk": "Low"
     },
     "harassment": {
-        "title": "Workplace Harassment (POSH)",
+        "title": "Workplace Harassment (POSH & Criminal Law)",
         "icon": "⚠️",
-        "laws": ["POSH Act 2013", "IPC 354 (Outraging Modesty)", "IPC 354A (Sexual Harassment)", "IPC 509"],
-        "rights": ["Safe working environment (mandatory)", "File with Internal Complaints Committee (ICC)", "Confidentiality guaranteed", "Right to compensation", "Protection from retaliation"],
-        "steps": ["Document all incidents with dates/times", "File ICC complaint within 3 months", "If no ICC: approach District Officer", "File police complaint under IPC 354", "Approach State Women Commission"],
-        "helplines": ["Women Helpline: 181", "NCW: 7827170170", "Police: 112"],
-        "sr": 61, "dur": "2–6 months", "risk": "Medium"
+        "laws": [
+            "Sexual Harassment of Women at Workplace (POSH) Act 2013",
+            "BNS 2023 Sec 74 – Assault / Criminal Force to Outrage Modesty (ex-IPC 354)",
+            "BNS 2023 Sec 75 – Sexual Harassment (ex-IPC 354A)",
+            "BNS 2023 Sec 79 – Word, Gesture or Act Intended to Insult Modesty (ex-IPC 509)"
+        ],
+        "rights": ["Mandatory safe and harassment-free working environment in all establishments with 10+ employees", "Right to file formal complaint before Internal Complaints Committee (ICC) within 3 months", "Statutory guarantee of strict confidentiality during all inquiry proceedings", "Right to interim relief including 3 months paid leave or department transfer", "Protection against retaliatory termination, unfavorable reviews, or harassment"],
+        "steps": ["Record contemporary notes with dates, exact spoken words, emails, and WhatsApp screenshots", "Submit written formal complaint to employer Internal Committee (ICC) or Local Committee", "If management fails to act within 90 days, file police complaint under BNS Sec 74/75", "Lodge complaint with National Commission for Women (NCW) portal or State Women Commission"],
+        "helplines": ["Women Emergency Helpline: 181 / 112", "NCW 24/7 Helpline: 7827170170", "She-Box Portal: shebox.wcd.gov.in"],
+        "sr": 65, "dur": "2–5 months", "risk": "Medium"
     },
     "accident": {
-        "title": "Road / Vehicle Accident",
+        "title": "Road / Motor Vehicle Accident Claim",
         "icon": "🚗",
-        "laws": ["Motor Vehicles Act 1988 Sec 166", "IPC 279 (Rash Driving)", "IPC 338 (Grievous Hurt)", "IPC 304A (Causing Death)"],
-        "rights": ["Free first aid at any hospital", "MACT compensation claim", "Full insurance claim", "FIR filing right"],
-        "steps": ["Call 112 immediately", "Preserve all medical bills", "File FIR at nearest police station", "Notify insurance within 48 hours", "File MACT claim petition"],
-        "helplines": ["Emergency: 112", "Insurance Ombudsman: 155255"],
-        "sr": 74, "dur": "6–18 months", "risk": "Low"
+        "laws": [
+            "Motor Vehicles (Amendment) Act 2019 – Section 166 (Compensation Claim)",
+            "BNS 2023 Sec 281 – Rash or Negligent Driving on Public Way (ex-IPC 279)",
+            "BNS 2023 Sec 125 – Act Endangering Life or Personal Safety (ex-IPC 336/337)",
+            "BNS 2023 Sec 106(1) – Causing Death by Negligence (ex-IPC 304A)"
+        ],
+        "rights": ["Immediate cashless emergency medical treatment at any hospital during Golden Hour", "Right to file claim before Motor Accident Claims Tribunal (MACT) without limitation period", "Interim compensation under No-Fault Liability clause", "Right to claim complete repair/loss from third-party insurance"],
+        "steps": ["Dial 112 immediately for emergency medical help and police spot panchnama", "Photograph vehicles, skid marks, number plates, and driver license details", "Ensure police register FIR under Section 173 BNSS and prepare Detailed Accident Report (DAR)", "Notify insurer within 48 hours and preserve all hospital discharge summaries & bills", "File MACT Claim Petition through Legal Aid Advocate at District Court"],
+        "helplines": ["National Emergency Number: 112", "Ambulance: 108", "Insurance Regulatory (IRDAI): 155255"],
+        "sr": 76, "dur": "6–18 months", "risk": "Low"
     },
     "consumer": {
-        "title": "Consumer Rights Violation",
+        "title": "Consumer Rights & Defective Goods/Services",
         "icon": "🛒",
-        "laws": ["Consumer Protection Act 2019", "Sale of Goods Act 1930", "BIS Act 2016", "Legal Metrology Act 2009"],
-        "rights": ["Right to Safety, Information, Choice", "Free complaint up to ₹50 lakh", "Right to Redressal & Education", "Compensation for mental agony"],
-        "steps": ["Keep purchase receipt & warranty", "Send complaint to company first (30 days)", "File FREE at edaakhil.nic.in", "District Forum: up to ₹50 lakh", "State Commission: up to ₹2 crore"],
-        "helplines": ["Consumer: 1800-11-4000 (Free)", "Portal: edaakhil.nic.in"],
-        "sr": 71, "dur": "3–9 months", "risk": "Low"
+        "laws": [
+            "Consumer Protection Act 2019 – Section 35 (District Commission Jurisdiction)",
+            "Consumer Protection Act 2019 – Section 2(10) [Defect] & Section 2(11) [Deficiency]",
+            "Consumer Protection Act 2019 – Section 2(47) [Unfair Trade Practices]",
+            "Consumer Protection (E-Commerce) Rules 2020"
+        ],
+        "rights": ["Right to safety, truthful information, choice, and consumer education", "Right to replacement, repair, or 100% refund with interest for defective goods", "Statutory compensation for mental agony, harassment, and litigation expenses", "Free online filing on National E-Daakhil portal without requiring a lawyer"],
+        "steps": ["Preserve tax invoice, warranty card, product photographs, and error screenshots", "Issue formal Legal Notice / Email giving seller/company 15 days to resolve", "File complaint online at National Consumer Helpline (consumerhelpline.gov.in)", "File formal Consumer Complaint on edaakhil.nic.in before District Commission (up to ₹50 Lakhs)"],
+        "helplines": ["National Consumer Helpline: 1915 / 1800-11-4000", "Online Portal: edaakhil.nic.in"],
+        "sr": 74, "dur": "3–9 months", "risk": "Low"
     },
     "divorce": {
-        "title": "Divorce / Family Dispute",
+        "title": "Matrimonial & Family Dispute",
         "icon": "👨‍👩‍👧",
-        "laws": ["Hindu Marriage Act 1955 Sec 13", "DV Act 2005", "Special Marriage Act 1954", "Muslim Personal Law"],
-        "rights": ["Maintenance/alimony right", "Child custody right", "Share in marital property", "Protection from domestic violence"],
-        "steps": ["Consult family lawyer or legal aid", "Mutual consent: 6 months process", "Contested: file in Family Court", "DV complaint: Magistrate Court directly", "Mediation recommended first"],
-        "helplines": ["Women: 181", "Legal Aid: 15100", "Family Court: District Court"],
-        "sr": 77, "dur": "6 months–3 years", "risk": "Medium"
+        "laws": [
+            "Hindu Marriage Act 1955 – Section 13 (Contested) & 13B (Mutual Consent)",
+            "Protection of Women from Domestic Violence Act 2005 (PWDVA)",
+            "Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 Sec 144 – Maintenance (ex-CrPC 125)",
+            "Special Marriage Act 1954 / Guardians and Wards Act 1890"
+        ],
+        "rights": ["Right to interim and permanent maintenance/alimony for spouse and minor children", "Right to residence in shared household under Domestic Violence Act", "Right to custody / visitation rights prioritizing welfare of the minor child", "Right to return of complete Stridhan property"],
+        "steps": ["Participate in pre-litigation family counselling or court mediation", "For mutual consent: joint petition under Section 13B (6 months cooling period can be waived)", "For domestic violence: direct application to Magistrate under DV Act Section 12", "For maintenance: petition under Section 144 BNSS / Section 24 HMA"],
+        "helplines": ["Women Helpline: 181", "NALSA Legal Aid: 15100", "National Commission for Women: 7827170170"],
+        "sr": 78, "dur": "6 months–2 years", "risk": "Medium"
     },
     "property": {
-        "title": "Property / Land Dispute",
+        "title": "Property, Land & Real Estate Dispute",
         "icon": "🏗️",
-        "laws": ["Transfer of Property Act 1882", "Registration Act 1908", "Limitation Act 1963", "RERA 2016", "Specific Relief Act 1963"],
-        "rights": ["Registered title deed right", "Peaceful possession right", "Contest fraudulent transfers", "RERA complaint for builder"],
-        "steps": ["Get all documents verified by lawyer", "Check title at Sub-Registrar", "File civil suit for title declaration", "Apply for temporary injunction", "RERA complaint for builder issues"],
-        "helplines": ["Legal Aid: 15100", "RERA: State portal", "Revenue: Contact Tehsildar"],
-        "sr": 55, "dur": "1–5 years", "risk": "High"
+        "laws": [
+            "Real Estate (Regulation and Development) Act 2016 (RERA) – Sec 18 (Refund & Interest)",
+            "Transfer of Property Act 1882 – Section 54 (Sale) & Section 53A (Part Performance)",
+            "Specific Relief Act 1963 – Injunction and Specific Performance",
+            "BNS 2023 Sec 329 – Criminal Trespass (ex-IPC 441/447)"
+        ],
+        "rights": ["Statutory right to full refund with SBI MCLR + 2% interest for delayed builder possession under RERA", "Right to peaceful possession under registered conveyance deed", "Right to obtain temporary and permanent injunction against illegal trespass", "Right to inspect encumbrance certificate at Sub-Registrar Office"],
+        "steps": ["Obtain complete chain of title documents and certified registry copy", "For builder delay: file online complaint before State RERA Authority", "For boundary / title dispute: file Civil Suit for Declaration and Injunction", "Apply for interim injunction under Order 39 Rules 1 & 2 CPC to prevent third-party creation"],
+        "helplines": ["NALSA Free Legal Aid: 15100", "State RERA Web Portals", "Revenue Department / Tehsildar"],
+        "sr": 58, "dur": "1–3 years", "risk": "High"
     },
     "employment": {
-        "title": "Employment / Labour Dispute",
+        "title": "Employment, Salary & Labour Rights",
         "icon": "💼",
-        "laws": ["Industrial Disputes Act 1947", "Payment of Wages Act 1936", "Minimum Wages Act 1948", "Gratuity Act 1972", "EPF Act 1952"],
-        "rights": ["Minimum wage right", "Gratuity after 5 years", "EPF contributions", "Challenge wrongful termination", "Safe working conditions"],
-        "steps": ["Collect appointment letter, salary slips", "Send legal notice to employer", "File with Labour Commissioner", "Labour Court for reinstatement", "File EPF complaint at epfigms.gov.in"],
-        "helplines": ["Labour: 14567", "EPF: 1800-118-005", "ESIC: 1800-11-2526"],
-        "sr": 63, "dur": "6–24 months", "risk": "Medium"
+        "laws": [
+            "Payment of Wages Act 1936 & Code on Wages 2019",
+            "Industrial Disputes Act 1947 – Section 25F (Retrenchment Compensation)",
+            "Payment of Gratuity Act 1972 (Mandatory gratuity after 5 years continuous service)",
+            "Employees' Provident Funds and Miscellaneous Provisions Act 1952"
+        ],
+        "rights": ["Right to full payment of earned salary by the 7th/10th of every calendar month", "Mandatory notice period salary or retrenchment compensation prior to termination", "Statutory entitlement to Gratuity, accumulated PF, and encashment of leaves", "Right to challenge arbitrary termination before Labour Conciliation Officer"],
+        "steps": ["Preserve offer letter, employment contract, salary slips, and resignation/termination emails", "Send formal Demand Notice via Registered Post giving 15 days to clear dues", "File grievance on Ministry of Labour portal (samadhan.labour.gov.in)", "Lodge EPF evasion complaint on EPFiGMS portal (epfigms.gov.in)"],
+        "helplines": ["Ministry of Labour Shram Suvidha: 14567", "EPFO Toll-Free: 1800-118-005", "ESIC: 1800-11-2526"],
+        "sr": 66, "dur": "4–14 months", "risk": "Medium"
     },
     "theft": {
-        "title": "Theft / Robbery / Stolen Property",
+        "title": "Theft, Robbery & Stolen Property",
         "icon": "🚨",
-        "laws": ["IPC Section 378 – Theft", "IPC Section 379 – Punishment for Theft", "IPC Section 380 – Theft in Dwelling House", "IPC Section 382 – Theft after Preparation", "IPC Section 392 – Robbery", "IPC Section 401 – Habitual Thief"],
-        "rights": ["Right to file FIR immediately", "Right to claim insurance if vehicle/property insured", "Right to police investigation and recovery", "Right to compensation from accused upon conviction"],
-        "steps": ["Call 112 / 100 immediately to report", "File FIR at nearest police station as soon as possible", "Provide vehicle/property details: make, model, registration number, identifying marks", "Notify insurance company within 24 hours if insured", "Check CCTV footage in the area", "Track vehicle via GPS/smartwatch if available", "Keep FIR copy, insurance papers, purchase proof safe"],
-        "helplines": ["Police: 112", "Emergency: 112", "Vehicle Tracking: VAHAN portal"],
-        "sr": 65, "dur": "2–12 months", "risk": "Low"
+        "laws": [
+            "BNS 2023 Sec 303(2) – Punishment for Theft (ex-IPC 379)",
+            "BNS 2023 Sec 305 – Theft in Dwelling House or Transport (ex-IPC 380)",
+            "BNS 2023 Sec 309 – Robbery (ex-IPC 392)",
+            "BNS 2023 Sec 317 – Receiving Stolen Property (ex-IPC 411)",
+            "BNSS 2023 Sec 173 – Mandatory Registration of FIR / Zero FIR (ex-CrPC 154)"
+        ],
+        "rights": ["Right to have FIR registered immediately without delay (Zero FIR anywhere in India)", "Right to receive free certified copy of FIR under Section 173(2) BNSS", "Right to claim insurance indemnity upon police Untraced Report / Non-Recovery Certificate", "Right to apply for interim custody of recovered property (Superdari) under BNSS"],
+        "steps": ["Call 112 immediately to record first response police call time", "Visit nearest police station and file written FIR draft with complete item identifiers (IMEI, chassis number, receipts)", "For mobile phones, block IMEI immediately on CEIR portal (ceir.gov.in)", "Inform insurance company in writing within 24–48 hours", "Collect signed FIR copy with GD Number from the Duty Officer"],
+        "helplines": ["National Emergency: 112", "CEIR Mobile Block: ceir.gov.in", "VAHAN Portal: vahan.parivahan.gov.in"],
+        "sr": 68, "dur": "2–8 months", "risk": "Low"
+    },
+    "gov_scheme": {
+        "title": "Government Housing & Welfare Scheme (PMAY / Subsidies)",
+        "icon": "🏛️",
+        "laws": [
+            "Pradhan Mantri Awas Yojana (PMAY-U 2.0 / PMAY-G) Operational Guidelines",
+            "Constitution of India - Article 21 (Right to Shelter as a Fundamental Right)",
+            "State Right to Public Services Act (Statutory Time-Bound Delivery of Public Services)",
+            "Right to Information (RTI) Act 2005 - Section 6 (Mandatory Time-Bound Disclosure)"
+        ],
+        "rights": [
+            "Statutory entitlement to timely verification and DBT installment release under PMAY mission directives",
+            "Right to written inspection report and recorded reasons if any installment or subsidy is held up",
+            "Right to file first and second appeals under State Right to Public Services Act for municipal delays",
+            "Right to demand certified file movement records, geo-tagging notes, and subsidy status under RTI within 30 days"
+        ],
+        "steps": [
+            "Track online application status on PMAY-MIS portal (pmaymis.gov.in) using your Application / Beneficiary ID",
+            "Submit formal written grievance to the Executive Officer / Commissioner of the Municipal Committee with Inward Stamp",
+            "Escalate complaint online to State Urban Development Department and Central CPGRAMS portal (pgportal.gov.in)",
+            "File Form 'A' RTI application with Municipal Public Information Officer (PIO) demanding file movement sheet within 30 days"
+        ],
+        "helplines": [
+            "PMAY Toll-Free Helpline: 1800-11-6163 / 1800-11-3377",
+            "Central Public Grievance (CPGRAMS): pgportal.gov.in",
+            "National RTI Portal: rtionline.gov.in"
+        ],
+        "sr": 75, "dur": "1-4 months", "risk": "Low"
+    },
+    "public_grievance": {
+        "title": "Municipal Inaction, Public Grievance & RTI",
+        "icon": "🏢",
+        "laws": [
+            "Right to Information (RTI) Act 2005 - Sections 6, 7 & 19 (Appeals against Public Authority)",
+            "State Municipal Corporation & Municipal Committee Acts",
+            "State Right to Public Services Act (Penalties on Defaulting Public Officials)",
+            "Constitution of India - Article 226 (Writ of Mandamus against Inactive Authorities)"
+        ],
+        "rights": [
+            "Right to time-bound public service delivery without arbitrary bureaucratic delays",
+            "Right to obtain certified copies of government files, noting sheets, and official orders under RTI",
+            "Right to seek statutory penalty against errant officials under Right to Service Act",
+            "Right to file Writ Petition (Mandamus) before High Court to compel official duty"
+        ],
+        "steps": [
+            "Always submit applications in duplicate and obtain stamped Inward Diary Number from the municipal office",
+            "Lodge formal grievance on CPGRAMS (pgportal.gov.in) and State CM Window",
+            "File formal RTI application with the Public Information Officer (PIO) seeking noting sheets and reasons for delay",
+            "If public servant demands illegal gratification, lodge complaint with State Vigilance Bureau / Anti-Corruption Branch"
+        ],
+        "helplines": [
+            "CPGRAMS Central Portal: pgportal.gov.in",
+            "Citizen / Consumer Helpline: 1915",
+            "Central Vigilance Commission: 1964"
+        ],
+        "sr": 70, "dur": "1–3 months", "risk": "Low"
+    },
+    "police_inaction": {
+        "title": "Police Inaction, Refusal of FIR & Corruption",
+        "icon": "🛡️",
+        "laws": [
+            "Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 Sec 173(4) – Representation to SP/DCP",
+            "Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 Sec 175(3) – Magistrate Order to Register FIR (ex-CrPC 156(3))",
+            "BNS 2023 Sec 198 – Public Servant Disobeying Law to Cause Injury (ex-IPC 166)",
+            "Prevention of Corruption Act 1988 – Demand of Bribe / Undue Advantage"
+        ],
+        "rights": [
+            "Mandatory registration of FIR for cognizable offences without preliminary enquiry (Lalita Kumari v. Govt of UP)",
+            "Right to send written complaint to Superintendent of Police (SP) under Sec 173(4) BNSS",
+            "Right to petition Judicial Magistrate under Sec 175(3) BNSS for court-ordered FIR",
+            "Right to free copy of FIR immediately upon registration under Section 173(2) BNSS"
+        ],
+        "steps": [
+            "Send written complaint copy via Registered Speed Post with postal receipt to Superintendent of Police (SP/DCP)",
+            "If police still fail to act within 15 days, file application under Sec 175(3) BNSS before Judicial Magistrate",
+            "For bribe or corruption demands, report immediately to State Anti-Corruption Bureau / Vigilance Bureau",
+            "Approach State Human Rights Commission or Police Complaints Authority if subjected to harassment"
+        ],
+        "helplines": [
+            "Police Emergency: 112",
+            "Anti-Corruption / Vigilance Helpline: 1064",
+            "National Human Rights Commission: 14433"
+        ],
+        "sr": 68, "dur": "1–6 months", "risk": "Medium"
     },
     "default": {
         "title": "General Legal Guidance",
         "icon": "⚖️",
-        "laws": ["Constitution of India – Fundamental Rights Art 12-35", "IPC 1860", "CPC 1908", "Legal Services Authorities Act 1987"],
-        "rights": ["Equality before law (Art 14)", "Right to legal representation", "Right to fair trial", "Free legal aid if income below threshold"],
-        "steps": ["Call NALSA: 15100 for free legal aid", "Identify exact type of legal problem", "Approach nearest District Legal Aid Center", "Collect and preserve all evidence", "File complaint within limitation period"],
-        "helplines": ["NALSA: 15100 (Free Legal Aid)", "Police: 112", "Women: 181"],
-        "sr": 60, "dur": "Varies", "risk": "Medium"
+        "laws": [
+            "Constitution of India – Fundamental Rights (Articles 14, 19, 21)",
+            "Bharatiya Nyaya Sanhita (BNS) 2023 – Modern Substantive Criminal Code",
+            "Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 – Modern Criminal Procedure",
+            "Legal Services Authorities Act 1987 – Free Legal Aid for Citizens"
+        ],
+        "rights": ["Fundamental Right to Equality before Law and Equal Protection (Article 14)", "Right to Life and Personal Liberty with fair procedure (Article 21)", "Right to Free Legal Services under Section 12 of Legal Services Authorities Act", "Right to approach High Court (Article 226) or Supreme Court (Article 32)"],
+        "steps": ["Call National Legal Services Authority (NALSA) toll-free on 15100", "Consult District Legal Services Authority (DLSA) at your District Court for a free empanelled advocate", "Gather and catalog all factual proof, agreements, and notices", "Check the statutory limitation period applicable to your remedy before filing"],
+        "helplines": ["NALSA Free Legal Aid: 15100", "National Emergency: 112", "Women Helpline: 181"],
+        "sr": 62, "dur": "Varies by Forum", "risk": "Medium"
     },
     "law_definition": {
-        "title": "Understanding Law",
+        "title": "Understanding Indian Law & Hierarchy",
         "icon": "📚",
-        "summary": "Law is a system of rules made or recognised by a legitimate authority to regulate behaviour, protect rights, resolve disputes, and provide remedies. In India, the Constitution is the highest law, followed by legislation, delegated rules, and judicial decisions.",
-        "laws": ["The Constitution of India is the supreme law", "Acts are laws passed by Parliament or a State Legislature", "Rules and regulations explain how an Act is applied", "Courts interpret and enforce laws"],
-        "rights": ["Everyone is equal before the law", "You can seek legal representation", "You can approach a court or legal-aid authority", "You should receive a fair hearing"],
-        "steps": ["Identify the subject and jurisdiction", "Read the relevant Act and current rules", "Collect facts and supporting documents", "Get advice from a qualified lawyer or free legal-aid service"],
-        "helplines": ["NALSA free legal aid: 15100"],
-        "sr": 60, "dur": "Varies", "risk": "Medium"
+        "summary": "In India, the Constitution of India is the supreme Grundnorm. All parliamentary statutes (such as the BNS 2023, BNSS 2023, BSA 2023, and Civil Procedure Code) derive their validity from the Constitution. Judgments of the Supreme Court under Article 141 form binding law throughout India.",
+        "laws": [
+            "Constitution of India – Supreme Grundnorm of the Indian Republic",
+            "Statutory Acts of Parliament (Central) & State Legislatures",
+            "Delegated Legislation (Rules, Regulations, and Notifications)",
+            "Judicial Precedents of the Supreme Court of India (Article 141)"
+        ],
+        "rights": ["Equality before the law without arbitrary discrimination", "Right to judicial review against unconstitutional laws (Article 13)", "Right to fair trial, impartial hearing, and reasoned orders", "Right to legal representation and legal aid"],
+        "steps": ["Identify whether the issue is Constitutional, Civil, Criminal, or Regulatory", "Consult the latest enacted statutes (such as BNS 2023 rather than repealed codes)", "Review Supreme Court rulings on the exact legal proposition", "Seek professional guidance from a registered High Court / Supreme Court Advocate"],
+        "helplines": ["NALSA Free Legal Aid: 15100"],
+        "sr": 60, "dur": "Educational", "risk": "Low"
     },
     "legal_case": {
-        "title": "Legal Case Basics",
+        "title": "Legal Case Dynamics & Procedure",
         "icon": "⚖️",
-        "summary": "A legal case is a formal dispute or proceeding brought before a court or tribunal. The court examines facts, evidence, and applicable law before issuing an order or judgment.",
-        "laws": ["Civil cases generally concern rights, money, property, or contracts", "Criminal cases concern offences investigated and prosecuted by the State", "The Constitution and procedural laws govern court remedies"],
-        "rights": ["Notice of proceedings", "Opportunity to present evidence and arguments", "Legal representation", "Appeal or review where permitted by law"],
-        "steps": ["Identify whether the matter is civil, criminal, family, consumer, or constitutional", "Preserve notices, contracts, messages, and other evidence", "Check limitation periods and the correct court", "Consult a lawyer or legal-aid service before filing"],
-        "helplines": ["NALSA free legal aid: 15100", "Emergency: 112"],
-        "sr": 60, "dur": "Varies", "risk": "Medium"
+        "summary": "A legal case is a formal dispute presented before a competent judicial forum. Civil cases resolve property, contract, and monetary disputes on the balance of probabilities, whereas criminal cases are prosecuted by the State under the Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023 beyond reasonable doubt.",
+        "laws": [
+            "Code of Civil Procedure, 1908 (CPC) – Regulates Civil Suits & Appeals",
+            "Bharatiya Nagarik Suraksha Sanhita, 2023 (BNSS) – Regulates Criminal Procedure & Bail",
+            "Bharatiya Sakshya Adhiniyam, 2023 (BSA) – Regulates Evidence & Digital Proof",
+            "Limitation Act, 1963 – Prescribes strict time limits for instituting actions"
+        ],
+        "rights": ["Right to receiving complete copies of pleadings, chargesheets, and documents", "Right to cross-examine adverse witnesses", "Right to legal counsel of choice or court-appointed legal aid", "Right to appeal before Sessions Court, High Court, and Supreme Court"],
+        "steps": ["Determine whether the cause of action is civil, criminal, consumer, or tribunal-bound", "Preserve all original evidence, contracts, financial receipts, and digital records", "Draft notice or plaint strictly within the prescribed limitation period", "Approach the appropriate court having pecuniary and territorial jurisdiction"],
+        "helplines": ["NALSA Free Legal Aid: 15100", "National Emergency: 112"],
+        "sr": 62, "dur": "Case Specific", "risk": "Medium"
     }
 }
 
+# ── Indian Laws Database (Modernized: BNS 2023, BNSS 2023, BSA 2023 & Key Acts) ───
 LAWS_DB = {
-    "IPC 1860": {"full": "Indian Penal Code, 1860", "desc": "Primary criminal law governing all offences including murder, theft, fraud, assault, defamation.", "sections": ["Sec 302–Murder", "Sec 420–Cheating", "Sec 376–Rape", "Sec 379–Theft", "Sec 354–Outraging Modesty"], "cat": "Criminal"},
-    "IT Act 2000": {"full": "Information Technology Act, 2000", "desc": "Governs cyber crimes, hacking, online fraud, digital signatures, data protection.", "sections": ["Sec 66C–Identity Theft", "Sec 66D–Impersonation", "Sec 67–Obscene Material", "Sec 43–Damage to Computer"], "cat": "Cyber"},
-    "Consumer Protection Act 2019": {"full": "Consumer Protection Act, 2019", "desc": "Protects consumer rights against defective goods, deficient services, unfair trade practices.", "sections": ["Sec 2(7)–Consumer", "Sec 35–District Forum", "Sec 47–State Commission", "Sec 58–National Commission"], "cat": "Consumer"},
-    "POSH Act 2013": {"full": "Sexual Harassment of Women at Workplace Act, 2013", "desc": "Mandatory for all organizations with 10+ employees to prevent sexual harassment.", "sections": ["Sec 4–ICC", "Sec 6–Local Committee", "Sec 11–Inquiry", "Sec 13–Recommendations"], "cat": "Labour"},
-    "RTI Act 2005": {"full": "Right to Information Act, 2005", "desc": "Every citizen can request information from any public authority. Fee: ₹10.", "sections": ["Sec 6–Application", "Sec 7–30 Day Limit", "Sec 8–Exemptions", "Sec 19–Appeal"], "cat": "Constitutional"},
-    "DV Act 2005": {"full": "Protection of Women from Domestic Violence Act, 2005", "desc": "Civil and criminal remedies for women facing domestic violence.", "sections": ["Sec 12–Application", "Sec 17–Right to Home", "Sec 18–Protection Order", "Sec 20–Monetary Relief"], "cat": "Family"},
-    "Motor Vehicles Act 1988": {"full": "Motor Vehicles Act, 1988", "desc": "Road accidents, traffic offences, insurance, MACT compensation.", "sections": ["Sec 140–No-fault liability", "Sec 166–Claim Application", "Sec 163A–Structured Formula"], "cat": "Motor"},
-    "Hindu Marriage Act 1955": {"full": "Hindu Marriage Act, 1955", "desc": "Marriage, divorce, alimony for Hindus, Sikhs, Jains, Buddhists.", "sections": ["Sec 13–Divorce", "Sec 13B–Mutual Consent", "Sec 24–Interim Maintenance", "Sec 25–Permanent Alimony"], "cat": "Family"},
-    "RERA 2016": {"full": "Real Estate (Regulation & Development) Act, 2016", "desc": "Regulates real estate, protects homebuyers from builder delays and fraud.", "sections": ["Sec 3–Registration", "Sec 12–False Info", "Sec 18–Return Amount", "Sec 31–Complaint"], "cat": "Property"},
-    "Industrial Disputes Act 1947": {"full": "Industrial Disputes Act, 1947", "desc": "Labour disputes, wrongful termination, retrenchment, dispute resolution.", "sections": ["Sec 2A–Individual Disputes", "Sec 10–Reference to Tribunal", "Sec 25F–Retrenchment", "Sec 33C–Recovery"], "cat": "Labour"},
-    "CrPC 1973": {"full": "Code of Criminal Procedure, 1973", "desc": "Procedure for FIR, arrest, bail, trial, sentencing in criminal cases.", "sections": ["Sec 154–FIR", "Sec 125–Maintenance", "Sec 436–Bail", "Sec 482–HC Powers"], "cat": "Criminal"},
-    "Constitution of India": {"full": "Constitution of India (1950)", "desc": "Supreme law. Part III (Art 12–35) grants Fundamental Rights enforceable by courts.", "sections": ["Art 14–Equality", "Art 19–Freedom", "Art 21–Life & Liberty", "Art 32–Remedies"], "cat": "Constitutional"}
+    "BNS 2023": {
+        "full": "Bharatiya Nyaya Sanhita, 2023 (Replaces IPC 1860)",
+        "desc": "India's modern criminal code effective July 1, 2024. Modernizes criminal jurisprudence with community service punishments, strict terrorism and organized crime definitions, and streamlined offences.",
+        "sections": [
+            "Sec 103 – Murder (ex-IPC 302)",
+            "Sec 318 – Cheating & Fraud (ex-IPC 420)",
+            "Sec 303 – Theft (ex-IPC 379)",
+            "Sec 74 – Outraging Modesty of Woman (ex-IPC 354)",
+            "Sec 75 – Sexual Harassment (ex-IPC 354A)",
+            "Sec 316 – Criminal Breach of Trust (ex-IPC 406)",
+            "Sec 85/86 – Cruelty by Husband or Relatives (ex-IPC 498A)"
+        ],
+        "cat": "Criminal"
+    },
+    "BNSS 2023": {
+        "full": "Bharatiya Nagarik Suraksha Sanhita, 2023 (Replaces CrPC 1973)",
+        "desc": "India's modern procedural code governing criminal justice. Mandates electronic FIRs (Zero FIR), audio-video recording of search & seizure, strict forensic investigation timelines, and electronic summons.",
+        "sections": [
+            "Sec 173 – Information in Cognizable Cases & Zero FIR (ex-CrPC 154)",
+            "Sec 35 – Notice of Appearance before Police (ex-CrPC 41A)",
+            "Sec 144 – Maintenance for Wives, Children & Parents (ex-CrPC 125)",
+            "Sec 482 – Direction for Grant of Bail / Anticipatory Bail (ex-CrPC 438)",
+            "Sec 528 – Inherent Powers of High Court (ex-CrPC 482)"
+        ],
+        "cat": "Criminal"
+    },
+    "BSA 2023": {
+        "full": "Bharatiya Sakshya Adhiniyam, 2023 (Replaces IEA 1872)",
+        "desc": "Modernized Indian evidence law granting electronic and digital records (server logs, emails, smartphone messages, cloud files) primary evidence status on par with physical documents.",
+        "sections": [
+            "Sec 61 – Admissibility of Electronic Records in Court",
+            "Sec 63 – Certificate for Electronic / Digital Evidence",
+            "Sec 22 – Confessions and Admissions",
+            "Sec 104 – Burden of Proof in Criminal Proceedings"
+        ],
+        "cat": "Criminal"
+    },
+    "IPC 1860": {
+        "full": "Indian Penal Code, 1860 (Historic Code)",
+        "desc": "Colonial-era criminal code governing offences committed prior to July 1, 2024. For all newer offences, the Bharatiya Nyaya Sanhita (BNS) 2023 applies.",
+        "sections": ["Sec 302–Murder (BNS 103)", "Sec 420–Cheating (BNS 318)", "Sec 376–Rape (BNS 64)", "Sec 379–Theft (BNS 303)", "Sec 354–Outraging Modesty (BNS 74)"],
+        "cat": "Criminal"
+    },
+    "IT Act 2000": {
+        "full": "Information Technology Act, 2000 (Amended 2008)",
+        "desc": "Governs cyber offenses, unauthorized computer access, electronic contracts, digital signatures, phishing, and online identity theft across India.",
+        "sections": ["Sec 66C–Identity Theft & Phishing", "Sec 66D–Cheating by Impersonation", "Sec 67–Obscene Electronic Material", "Sec 43–Damage to Computer Systems & Data Compensation"],
+        "cat": "Cyber"
+    },
+    "Consumer Protection Act 2019": {
+        "full": "Consumer Protection Act, 2019",
+        "desc": "Comprehensive modern law protecting consumer rights against defective goods, deficient services, misleading ads, and unfair trade practices with nationwide E-Daakhil filing.",
+        "sections": ["Sec 2(7)–Definition of Consumer", "Sec 35–District Commission (up to ₹50L)", "Sec 47–State Commission (₹50L to ₹2Cr)", "Sec 58–National Commission (> ₹2Cr)", "Sec 84–Product Liability Action"],
+        "cat": "Consumer"
+    },
+    "POSH Act 2013": {
+        "full": "Sexual Harassment of Women at Workplace (Prevention, Prohibition & Redressal) Act, 2013",
+        "desc": "Mandates every employer with 10+ employees to establish an Internal Complaints Committee (ICC) and enforce strict anti-harassment mechanisms.",
+        "sections": ["Sec 4–Constitution of Internal Committee (ICC)", "Sec 9–Complaint of Sexual Harassment", "Sec 11–Inquiry into Complaint", "Sec 13–Inquiry Report & Recommendations"],
+        "cat": "Labour"
+    },
+    "RTI Act 2005": {
+        "full": "Right to Information Act, 2005",
+        "desc": "Empowers Indian citizens to request official records, contracts, inspection reports, and information from any public authority within 30 days.",
+        "sections": ["Sec 6–Request for Obtaining Information", "Sec 7–Disposal of Request within 30 Days", "Sec 8–Exemptions from Disclosure", "Sec 19–First and Second Appeals"],
+        "cat": "Constitutional"
+    },
+    "DV Act 2005": {
+        "full": "Protection of Women from Domestic Violence Act, 2005",
+        "desc": "Comprehensive civil-criminal law providing protection orders, residence rights, monetary relief, and custody orders to aggrieved women in shared households.",
+        "sections": ["Sec 12–Application to Magistrate", "Sec 17–Right to Reside in Shared Household", "Sec 18–Protection Orders against Violence", "Sec 20–Monetary Relief & Maintenance"],
+        "cat": "Family"
+    },
+    "Motor Vehicles Act 1988": {
+        "full": "Motor Vehicles Act, 1988 (Amended 2019)",
+        "desc": "Regulates vehicular traffic, road safety, driver licensing, mandatory third-party insurance, and MACT tribunal compensation claims.",
+        "sections": ["Sec 140–Liability without Fault in Accidents", "Sec 166–Application for Compensation before MACT", "Sec 161–Hit and Run Special Compensation Scheme"],
+        "cat": "Motor"
+    },
+    "Hindu Marriage Act 1955": {
+        "full": "Hindu Marriage Act, 1955",
+        "desc": "Governs marriage, judicial separation, restitution of conjugal rights, divorce, alimony, and custody for Hindus, Sikhs, Jains, and Buddhists.",
+        "sections": ["Sec 13–Grounds for Contested Divorce", "Sec 13B–Divorce by Mutual Consent", "Sec 24–Maintenance Pendente Lite (Interim)", "Sec 25–Permanent Alimony and Maintenance"],
+        "cat": "Family"
+    },
+    "RERA 2016": {
+        "full": "Real Estate (Regulation and Development) Act, 2016",
+        "desc": "Protects real estate buyers from project delays, false advertisements, and structural defects. Mandates 70% funds escrow deposit for projects.",
+        "sections": ["Sec 3–Mandatory Project Registration", "Sec 12–Obligations on Accuracy of Prospectus", "Sec 18–Return of Amount & Interest for Project Delay", "Sec 31–Filing Complaint before RERA Authority"],
+        "cat": "Property"
+    },
+    "Industrial Disputes Act 1947": {
+        "full": "Industrial Disputes Act, 1947",
+        "desc": "Governs employment disputes, lay-offs, retrenchment, strikes, unfair labour practices, and dispute adjudication before Labour Tribunals.",
+        "sections": ["Sec 2A–Dismissal Deemed Industrial Dispute", "Sec 10–Reference of Disputes to Boards/Tribunals", "Sec 25F–Conditions Precedent to Retrenchment", "Sec 33C–Recovery of Money Due from Employer"],
+        "cat": "Labour"
+    },
+    "CrPC 1973": {
+        "full": "Code of Criminal Procedure, 1973 (Historic Code)",
+        "desc": "Historic procedural code governing criminal procedure for pre-July 2024 matters. Succeeded by Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023.",
+        "sections": ["Sec 154–FIR (BNSS 173)", "Sec 125–Maintenance (BNSS 144)", "Sec 436–Bail in Bailable Offences", "Sec 482–Inherent Powers of High Court (BNSS 528)"],
+        "cat": "Criminal"
+    },
+    "Constitution of India": {
+        "full": "Constitution of India (1950)",
+        "desc": "Supreme law of the Republic of India. Part III (Articles 12–35) guarantees Fundamental Rights enforceable through High Courts and the Supreme Court.",
+        "sections": ["Art 14–Equality before Law", "Art 19–Protection of Fundamental Freedoms", "Art 21–Protection of Life & Personal Liberty", "Art 32–Remedies for Enforcement of Rights (Supreme Court)"],
+        "cat": "Constitutional"
+    }
 }
 
-# ── NLP Problem Detection ────────────────────────
+# ── NLP Problem Detection (Boundary-Aware & Weighted Multi-Domain Classifier) ─
 def detect_problem(text):
     t = text.lower()
     if any(phrase in t for phrase in ("what is law", "meaning of law", "define law", "law kya hai", "kanun kya hai")):
         return "law_definition"
     if any(phrase in t for phrase in ("what is a legal case", "what is legal case", "meaning of legal case", "legal case kya hai")):
         return "legal_case"
+
     kw = {
-        "theft": ["chori","chor","stolen","steal","thief","robbery","snatch","lift","gayab","missing","lost","chura","चोरी","చోరి","ચોરી","hack","hawala"],
-        "fraud": ["fraud","scam","cheat","cyber","online","phishing","hack","upi","debit","money stolen","account","otp","fake call"],
-        "landlord": ["landlord","deposit","rent","eviction","tenant","flat","house","lease","pg","hostel","accommodation","makan","makan malik"],
-        "harassment": ["harassment","harass","bully","abuse","workplace","office","boss","posh","sexual","molestation","hostile"],
-        "accident": ["accident","crash","vehicle","car","bike","road","injury","hit","collision","mact","motor"],
-        "consumer": ["product","refund","defective","warranty","purchase","company","service","amazon","flipkart","ecommerce","bought","saman"],
-        "divorce": ["divorce","separation","custody","alimony","spouse","marriage","domestic violence","husband","wife","matrimonial","talaq"],
-        "property": ["property","land","title","possession","builder","plot","registry","encroach","rera","construction","boundary","jagah","zameen"],
-        "employment": ["salary","fired","terminated","job","employer","pf","gratuity","esic","increment","retrenchment","wage","dismissed","naukri"]
+        "gov_scheme": [
+            "pmay", "pm awas", "awas yojana", "pmay scheme", "housing scheme", "pm-kisan",
+            "pm kisan", "ayushman", "ayushman bharat", "ration card", "ration", "subsidy",
+            "second entry", "installment", "instalment", "kist", "govt scheme", "government scheme",
+            "sarkari yojana", "yojana", "dbt", "pension", "old age pension", "widow pension",
+            "scheme 2.0", "pmay 2.0", "scheme"
+        ],
+        "public_grievance": [
+            "municipal committee", "municipal corporation", "muncipal comittee", "municipality",
+            "nagar nigam", "nagar palika", "tehsildar", "sdm", "collector", "chandigarh office",
+            "government office", "govt office", "red tape", "delay in service", "inaction",
+            "not resolving", "public grievance", "cpgrams", "cm window", "right to service",
+            "rti", "right to information"
+        ],
+        "police_inaction": [
+            "police refusing", "refusing to register", "police not registering", "refusing fir",
+            "police inaction", "fake fir", "bribe", "corruption", "vigilance", "lokayukta",
+            "police harassment", "illegal detention"
+        ],
+        "theft": [
+            "chori", "chor", "stolen", "steal", "thief", "robbery", "snatch", "lift",
+            "gayab", "missing", "chura", "theft", "stolen bike", "stolen car", "stolen phone", "stolen property"
+        ],
+        "fraud": [
+            "fraud", "scam", "cheat", "cyber", "phishing", "upi", "debit card",
+            "credit card", "money stolen", "otp scam", "fake call", "online scam",
+            "cyber crime", "cheating"
+        ],
+        "landlord": [
+            "landlord", "security deposit", "deposit", "rent", "eviction",
+            "tenant", "lease", "pg", "hostel", "makan malik", "rent control", "unlawful eviction"
+        ],
+        "harassment": [
+            "workplace harassment", "office harassment", "harassment at work", "harass",
+            "harassed", "posh", "icc", "internal complaints committee", "sexual harassment",
+            "molestation", "outrage modesty", "eve teasing", "stalking", "unwanted touch",
+            "sexual assault", "boss harassing"
+        ],
+        "accident": [
+            "accident", "crash", "collision", "hit and run", "rash driving",
+            "mact", "motor vehicle", "car accident", "bike accident", "road accident"
+        ],
+        "consumer": [
+            "defective product", "refund", "warranty", "consumer court",
+            "amazon", "flipkart", "defective", "deficiency in service",
+            "ecommerce", "consumer complaint"
+        ],
+        "divorce": [
+            "divorce", "child custody", "custody", "alimony", "maintenance",
+            "domestic violence", "husband", "wife", "matrimonial", "stridhan",
+            "talaq", "separation", "498a"
+        ],
+        "property": [
+            "property", "land", "builder", "rera", "flat", "apartment", "possession",
+            "encroachment", "registry", "title deed", "plot", "construction",
+            "boundary", "trespass", "zameen", "jagah"
+        ],
+        "employment": [
+            "salary", "wage", "fired", "terminated", "job", "employer",
+            "pf", "gratuity", "retrenchment", "labour court", "naukri", "wrongful termination"
+        ]
     }
-    scores = {k: sum(1 for w in ws if w in t) for k, ws in kw.items()}
-    best = max(scores,key=scores.get)
+
+    scores = {}
+    for k, ws in kw.items():
+        score = 0
+        for w in ws:
+            pattern = r'(?:\b|\A)' + re.escape(w) + r'(?:\b|\Z)'
+            if re.search(pattern, t):
+                weight = 5 if (' ' in w or w in ('pmay', 'posh', 'rera', 'mact', 'rti', 'dbt', 'cpgrams')) else 2
+                score += weight
+        scores[k] = score
+
+    best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "default"
 
 # ── Document Generators ──────────────────────────
@@ -962,7 +1334,15 @@ def index():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "chunks": len(CHUNKS), "cases": len(CASES), "rag": "active"})
+    db_stats = database.get_database_stats()
+    return jsonify({
+        "status": "ok",
+        "chunks": len(CHUNKS),
+        "cases": len(CASES),
+        "rag": "active",
+        "database": db_stats.get("status", "connected"),
+        "db_engine": db_stats.get("database_engine", "SQLite")
+    })
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
@@ -1011,16 +1391,13 @@ def chat():
 
     # Save history only when the request belongs to a valid authenticated user.
     if user_id:
-        chat_data = load_chats(user_id)
-        chat_data["messages"].append({
-            "id": len(chat_data["messages"]) + 1,
-            "timestamp": datetime.now().isoformat(),
-            "message": message,
-            "response_preview": gemini_answer[:100],
-            "category": key,
-            "mode": mode
-        })
-        save_chats(user_id, chat_data)
+        database.save_user_chat(
+            user_id=user_id,
+            message=message,
+            response_preview=gemini_answer[:200],
+            category=key,
+            mode=mode
+        )
     
     return jsonify({
         "gemini_answer": gemini_answer,
@@ -1108,8 +1485,78 @@ def stats():
         "case_types": dict(case_types),
         "outcomes": dict(outcomes),
         "years_timeline": dict(years_timeline),
-        "success_rate": success_rate
+        "success_rate": success_rate,
+        "database": database.get_database_stats()
     })
+
+@app.route("/api/db/stats")
+def db_stats():
+    """Return database engine status and operational record counts"""
+    return jsonify(database.get_database_stats())
+
+# ── Document Persistence Routes ───────────────
+@app.route("/api/documents/save", methods=["POST"])
+@require_auth
+def save_user_document(user_id):
+    data = request.get_json() or {}
+    doc_type = data.get("doc_type", "fir")
+    title = data.get("title", f"{doc_type.upper()} Draft")
+    form_payload = data.get("form_payload", {})
+    rendered_content = data.get("rendered_content", "")
+
+    if not rendered_content:
+        return jsonify({"error": "rendered_content is required"}), 400
+
+    saved = database.save_document(user_id, doc_type, title, form_payload, rendered_content)
+    return jsonify({"message": "Document saved successfully", "document": saved}), 201
+
+@app.route("/api/documents", methods=["GET"])
+@require_auth
+def list_user_documents(user_id):
+    doc_type = request.args.get("type")
+    docs = database.get_user_documents(user_id, doc_type=doc_type)
+    return jsonify({"documents": docs, "total": len(docs)})
+
+@app.route("/api/documents/<doc_id>", methods=["DELETE"])
+@require_auth
+def delete_document(user_id, doc_id):
+    ok = database.delete_user_document(user_id, doc_id)
+    if ok:
+        return jsonify({"message": "Document deleted successfully"})
+    return jsonify({"error": "Document not found"}), 404
+
+# ── Case Bookmarks Routes ─────────────────────
+@app.route("/api/bookmarks", methods=["GET"])
+@require_auth
+def get_bookmarks(user_id):
+    bookmarks = database.get_user_bookmarks(user_id)
+    return jsonify({"bookmarks": bookmarks, "total": len(bookmarks)})
+
+@app.route("/api/bookmarks", methods=["POST"])
+@require_auth
+def add_bookmark(user_id):
+    data = request.get_json() or {}
+    case_id = data.get("case_id")
+    if case_id is None:
+        return jsonify({"error": "case_id is required"}), 400
+
+    bm = database.bookmark_case(
+        user_id=user_id,
+        case_id=int(case_id),
+        case_type=data.get("case_type", ""),
+        year=data.get("year", ""),
+        summary=data.get("summary", ""),
+        notes=data.get("notes", "")
+    )
+    return jsonify({"message": "Case bookmarked successfully", "bookmark": bm}), 201
+
+@app.route("/api/bookmarks/<int:case_id>", methods=["DELETE"])
+@require_auth
+def remove_bookmark_route(user_id, case_id):
+    ok = database.remove_bookmark(user_id, case_id)
+    if ok:
+        return jsonify({"message": "Bookmark removed"})
+    return jsonify({"error": "Bookmark not found"}), 404
 
 @app.route("/api/search")
 def search():
@@ -1215,53 +1662,212 @@ def rag():
         "total": len(chunk_results)
     })
 
+@app.route("/api/rag/eval")
+def rag_eval():
+    """
+    Academic RAG Evaluation Suite
+    Measures quantitative retrieval metrics across representative Indian law query domains:
+    - Precision@3 & Precision@5
+    - Mean Reciprocal Rank (MRR)
+    - Query Latency (ms)
+    - Vocabulary dimensionality & TF-IDF sparsity
+    """
+    test_suite = [
+        {"q": "online upi cyber fraud unauthorized money debited from bank account", "cat": "Criminal", "kw": ["cyber", "fraud", "it act", "theft", "bank"]},
+        {"q": "landlord refusing to refund security deposit after tenant vacated flat", "cat": "Civil", "kw": ["tenant", "rent", "landlord", "deposit", "property"]},
+        {"q": "road accident victim motor vehicle claim rash driving compensation MACT", "cat": "Motor", "kw": ["accident", "motor", "mact", "vehicle", "injury"]},
+        {"q": "defective mobile phone warranty refused consumer court complaint refund", "cat": "Consumer", "kw": ["consumer", "defective", "goods", "refund", "warranty"]},
+        {"q": "workplace sexual harassment POSH ICC inquiry committee hostile environment", "cat": "Criminal", "kw": ["harassment", "posh", "woman", "workplace", "modesty"]},
+        {"q": "builder delayed flat possession RERA refund with interest agreement breach", "cat": "Property", "kw": ["builder", "rera", "possession", "flat", "property"]},
+        {"q": "stolen vehicle bike theft FIR registration police station", "cat": "Criminal", "kw": ["theft", "stolen", "fir", "vehicle", "police"]},
+        {"q": "illegal termination from employment without notice or gratuity payment", "cat": "Labour", "kw": ["termination", "workman", "labour", "wages", "employment"]},
+        {"q": "mutual consent divorce petition maintenance custody Hindu Marriage Act", "cat": "Family", "kw": ["divorce", "marriage", "custody", "maintenance", "alimony"]},
+        {"q": "criminal breach of trust cheating contract dispute BNS 318 Section 420", "cat": "Criminal", "kw": ["cheating", "fraud", "breach", "trust", "contract"]}
+    ]
+
+    benchmark_results = []
+    precisions_3 = []
+    precisions_5 = []
+    reciprocal_ranks = []
+    latencies = []
+
+    for t in test_suite:
+        t0 = time.time()
+        chunks = rag_retrieve(t["q"], top_k=5)
+        elapsed_ms = round((time.time() - t0) * 1000, 2)
+        latencies.append(elapsed_ms)
+
+        target_cat = t["cat"].lower()
+        target_kws = t["kw"]
+
+        # Relevance matching
+        matches = []
+        for ch in chunks:
+            text_lower = ch["text"].lower()
+            ch_type = ch.get("case_type", "").lower()
+            is_relevant = (ch_type == target_cat) or any(k in text_lower for k in target_kws)
+            matches.append(is_relevant)
+
+        p3 = sum(matches[:3]) / 3.0 if chunks else 0.0
+        p5 = sum(matches[:5]) / 5.0 if chunks else 0.0
+        precisions_3.append(p3)
+        precisions_5.append(p5)
+
+        rr = 0.0
+        for rank_idx, m in enumerate(matches):
+            if m:
+                rr = 1.0 / (rank_idx + 1)
+                break
+        reciprocal_ranks.append(rr)
+
+        top_score = chunks[0]["score"] if chunks else 0.0
+
+        benchmark_results.append({
+            "query": t["q"],
+            "expected_category": t["cat"],
+            "top_score": round(top_score, 4),
+            "latency_ms": elapsed_ms,
+            "precision_at_3": round(p3, 2),
+            "precision_at_5": round(p5, 2),
+            "reciprocal_rank": round(rr, 2),
+            "top_source": chunks[0]["source"] if chunks else "N/A"
+        })
+
+    avg_p3 = round(sum(precisions_3) / len(precisions_3) * 100, 1)
+    avg_p5 = round(sum(precisions_5) / len(precisions_5) * 100, 1)
+    mrr = round(sum(reciprocal_ranks) / len(reciprocal_ranks), 3)
+    avg_latency = round(sum(latencies) / len(latencies), 2)
+
+    matrix_shape = TFIDF_MATRIX.shape
+    sparsity = round((1.0 - (TFIDF_MATRIX.nnz / (matrix_shape[0] * matrix_shape[1]))) * 100, 2)
+
+    return jsonify({
+        "status": "success",
+        "eval_timestamp": datetime.now().isoformat(),
+        "summary": {
+            "mean_precision_at_3": f"{avg_p3}%",
+            "mean_precision_at_5": f"{avg_p5}%",
+            "mean_reciprocal_rank_mrr": mrr,
+            "average_latency_ms": avg_latency,
+            "test_queries_count": len(test_suite),
+            "index_chunks": len(CHUNKS),
+            "total_features": len(VECTORIZER.get_feature_names_out()),
+            "matrix_sparsity": f"{sparsity}%"
+        },
+        "benchmarks": benchmark_results
+    })
+
 # ── Document Download Routes ──────────────────
+
+# ── Document Generation & Preview Routes ──────
+
+@app.route("/api/documents/preview", methods=["POST"])
+def preview_document():
+    data = request.get_json() or {}
+    doc_type = data.get("doc_type", "fir").lower()
+    rendered_text, _ = dg.generate_document_pdf(doc_type, data)
+    return jsonify({
+        "doc_type": doc_type,
+        "rendered_text": rendered_text,
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route("/api/download/fir", methods=["POST"])
 def download_fir():
     data = request.get_json() or {}
-    text = gen_fir(data)
+    text, pdf_stream = dg.generate_document_pdf("fir", data)
+    
+    # Save to user account if authenticated
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user_id = verify_jwt(token)
+    if user_id:
+        try:
+            database.save_document(user_id, "fir", f"FIR Draft - {data.get('name', 'General')}", data, text)
+        except Exception:
+            pass
+
     return send_file(
-        io.BytesIO(text.encode("utf-8")),
-        mimetype="text/plain",
+        pdf_stream,
+        mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"FIR_Draft_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        download_name=f"FIR_Draft_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     )
 
 @app.route("/api/download/notice", methods=["POST"])
 def download_notice():
     data = request.get_json() or {}
-    text = gen_notice(data)
+    text, pdf_stream = dg.generate_document_pdf("notice", data)
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user_id = verify_jwt(token)
+    if user_id:
+        try:
+            database.save_document(user_id, "notice", f"Legal Notice - {data.get('subject', 'General')}", data, text)
+        except Exception:
+            pass
+
     return send_file(
-        io.BytesIO(text.encode("utf-8")),
-        mimetype="text/plain",
+        pdf_stream,
+        mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"Legal_Notice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        download_name=f"Legal_Notice_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     )
 
 @app.route("/api/download/affidavit", methods=["POST"])
 def download_affidavit():
     data = request.get_json() or {}
-    text = gen_affidavit(data)
+    text, pdf_stream = dg.generate_document_pdf("affidavit", data)
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user_id = verify_jwt(token)
+    if user_id:
+        try:
+            database.save_document(user_id, "affidavit", f"Affidavit - {data.get('purpose', 'Sworn')}", data, text)
+        except Exception:
+            pass
+
     return send_file(
-        io.BytesIO(text.encode("utf-8")),
-        mimetype="text/plain",
+        pdf_stream,
+        mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"Affidavit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        download_name=f"Affidavit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     )
 
 @app.route("/api/download/complaint", methods=["POST"])
 def download_complaint():
     data = request.get_json() or {}
-    text = gen_complaint(data)
+    text, pdf_stream = dg.generate_document_pdf("complaint", data)
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user_id = verify_jwt(token)
+    if user_id:
+        try:
+            database.save_document(user_id, "complaint", f"Consumer Complaint - {data.get('product', 'Defect')}", data, text)
+        except Exception:
+            pass
+
     return send_file(
-        io.BytesIO(text.encode("utf-8")),
-        mimetype="text/plain",
+        pdf_stream,
+        mimetype="application/pdf",
         as_attachment=True,
-        download_name=f"Consumer_Complaint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        download_name=f"Consumer_Complaint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
+
+
+@app.route("/api/download/consultation", methods=["POST"])
+def download_consultation():
+    data = request.get_json() or {}
+    pdf_stream = dg.generate_consultation_pdf(data)
+    cat = (data.get("category") or "Consultation").replace(" ", "_")
+    return send_file(
+        pdf_stream,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"Legal_Consultation_{cat}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     )
 
 
 if __name__ == "__main__":
-    print("JusticeLens AI Backend Started")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5001))
+    print(f"JusticeLens AI Backend Started on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=True)
