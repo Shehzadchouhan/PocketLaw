@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { chatAPI, saveChatAPI, dlConsultation } from "../services/api";
+import { translate } from "../i18n";
 
 const QUICK = [
   "Landlord not returning security deposit",
@@ -11,6 +12,14 @@ const QUICK = [
   "Wrongful termination from job",
   "Builder not delivering flat - RERA",
   "Divorce and child custody issue"
+];
+
+const CHAT_LINKS = [
+  ["/steps", "fa-list-check", "Survival Steps"],
+  ["/documents", "fa-file-signature", "Documents"],
+  ["/laws", "fa-book-open", "Laws"],
+  ["/search", "fa-gavel", "Case Search"],
+  ["/rag", "fa-database", "Deep Search"]
 ];
 
 const LANG = {
@@ -63,8 +72,8 @@ const LANG = {
 
 const UI = {
   en: { aiLabel: "AI Law Matcher result", ragSec: "From Supreme Court judgments", webSec: "Live web results", lawSec: "Matched laws & sections", rgtSec: "Your legal rights", stpSec: "Survival steps", prdSec: "Case insight", simSec: "Similar Supreme Court judgments", hlpSec: "Helplines & contacts", actSec: "What you can do next", noRag: "No specific matching text found in the judgment database.", hide: "Hide", show: "Show", srcChunks: "source passages", webResults: "web results", cases: "cases", successRate: "Success rate", duration: "Duration", riskLevel: "Risk level", scCases: "SC cases", readAloud: "Read aloud", deepRag: "Deep search", firDraft: "FIR draft", legalNotice: "Legal notice", complaint: "Consumer complaint", openSteps: "Open survival checklist", analysisComplete: "Here's what I found for:", chunks: "passages", scCasesFull: "SC cases", searching: "Matching laws for your problem…", offline: "⚠️ Can't reach the PocketLaw server. Start the backend:\n\ncd backend\npython app.py", modes: ["Judgments only", "Web only", "Judgments + Web"], online: "Online", messages: "messages" },
-  hi: { aiLabel: "AI कानून मैचर परिणाम", ragSec: "सर्वोच्च न्यायालय निर्णयों से", webSec: "लाइव वेब परिणाम", lawSec: "मिलते कानून और धाराएं", rgtSec: "आपके कानूनी अधिकार", stpSec: "सर्वाइवल कदम", prdSec: "केस जानकारी", simSec: "समान सर्वोच्च न्यायालय निर्णय", hlpSec: "हेल्पलाइन और संपर्क", actSec: "आगे आप क्या कर सकते हैं", noRag: "निर्णय डेटाबेस में कोई विशिष्ट मिलान पाठ नहीं मिला।", hide: "छुपाएं", show: "दिखाएं", srcChunks: "स्रोत अंश", webResults: "वेब परिणाम", cases: "मामले", successRate: "सफलता दर", duration: "अवधि", riskLevel: "जोखिम स्तर", scCases: "SC मामले", readAloud: "ज़ोर से पढ़ें", deepRag: "गहन खोज", firDraft: "FIR ड्राफ्ट", legalNotice: "कानूनी नोटिस", complaint: "उपभोक्ता शिकायत", openSteps: "सर्वाइवल चेकलिस्ट खोलें", analysisComplete: "इसके लिए परिणाम:", chunks: "अंश", scCasesFull: "SC मामले", searching: "आपकी समस्या के लिए कानून खोजे जा रहे हैं…", modes: ["केवल निर्णय", "केवल वेब", "निर्णय + वेब"], online: "ऑनलाइन", messages: "संदेश" },
-  pa: { aiLabel: "AI ਕਾਨੂੰਨ ਮੈਚਰ ਨਤੀਜਾ", ragSec: "ਸੁਪਰੀਮ ਕੋਰਟ ਦੇ ਫ਼ੈਸਲਿਆਂ ਤੋਂ", webSec: "ਲਾਈਵ ਵੈੱਬ ਨਤੀਜੇ", lawSec: "ਮਿਲਦੇ ਕਾਨੂੰਨ ਅਤੇ ਧਾਰਾਵਾਂ", rgtSec: "ਤੁਹਾਡੇ ਕਾਨੂੰਨੀ ਅਧਿਕਾਰ", stpSec: "ਸਰਵਾਈਵਲ ਕਦਮ", prdSec: "ਕੇਸ ਜਾਣਕਾਰੀ", simSec: "ਮਿਲਦੇ ਸੁਪਰੀਮ ਕੋਰਟ ਫ਼ੈਸਲੇ", hlpSec: "ਹੈਲਪਲਾਈਨ ਅਤੇ ਸੰਪਰਕ", actSec: "ਅੱਗੇ ਤੁਸੀਂ ਕੀ ਕਰ ਸਕਦੇ ਹੋ", noRag: "ਫ਼ੈਸਲਾ ਡੇਟਾਬੇਸ ਵਿੱਚ ਕੋਈ ਖ਼ਾਸ ਮੇਲ ਨਹੀਂ ਮਿਲਿਆ।", hide: "ਲੁਕਾਓ", show: "ਦਿਖਾਓ", srcChunks: "ਸਰੋਤ ਅੰਸ਼", webResults: "ਵੈੱਬ ਨਤੀਜੇ", cases: "ਕੇਸ", successRate: "ਸਫਲਤਾ ਦਰ", duration: "ਮਿਆਦ", riskLevel: "ਜੋਖਮ ਪੱਧਰ", scCases: "SC ਕੇਸ", readAloud: "ਉੱਚੀ ਪੜ੍ਹੋ", deepRag: "ਡੂੰਘੀ ਖੋਜ", firDraft: "FIR ਡਰਾਫਟ", legalNotice: "ਕਾਨੂੰਨੀ ਨੋਟਿਸ", complaint: "ਖਪਤਕਾਰ ਸ਼ਿਕਾਇਤ", openSteps: "ਸਰਵਾਈਵਲ ਚੈੱਕਲਿਸਟ ਖੋਲ੍ਹੋ", analysisComplete: "ਇਸ ਲਈ ਨਤੀਜਾ:", chunks: "ਅੰਸ਼", scCasesFull: "SC ਕੇਸ", searching: "ਤੁਹਾਡੀ ਸਮੱਸਿਆ ਲਈ ਕਾਨੂੰਨ ਲੱਭੇ ਜਾ ਰਹੇ ਹਨ…", modes: ["ਸਿਰਫ਼ ਫ਼ੈਸਲੇ", "ਸਿਰਫ਼ ਵੈੱਬ", "ਫ਼ੈਸਲੇ + ਵੈੱਬ"], online: "ਆਨਲਾਈਨ", messages: "ਸੁਨੇਹੇ" },
+  hi: { aiLabel: "AI कानून मैचर परिणाम", ragSec: "सर्वोच्च न्यायालय निर्णयों से", webSec: "लाइव वेब परिणाम", lawSec: "मिलते कानून और धाराएं", rgtSec: "आपके कानूनी अधिकार", stpSec: "सर्वाइवल कदम", prdSec: "केस जानकारी", simSec: "समान सर्वोच्च न्यायालय निर्णय", hlpSec: "हेल्पलाइन और संपर्क", actSec: "आगे आप क्या कर सकते हैं", noRag: "निर्णय डेटाबेस में कोई विशिष्ट मिलान पाठ नहीं मिला।", hide: "छुपाएं", show: "दिखाएं", srcChunks: "स्रोत अंश", webResults: "वेब परिणाम", cases: "मामले", successRate: "सफलता दर", duration: "अवधि", riskLevel: "जोखिम स्तर", scCases: "SC मामले", readAloud: "जवाब सुनें", deepRag: "गहन खोज", firDraft: "FIR ड्राफ्ट", legalNotice: "कानूनी नोटिस", complaint: "उपभोक्ता शिकायत", openSteps: "सर्वाइवल चेकलिस्ट खोलें", analysisComplete: "इसके लिए परिणाम:", chunks: "अंश", scCasesFull: "SC मामले", searching: "आपकी समस्या के लिए कानून खोजे जा रहे हैं…", modes: ["केवल निर्णय", "केवल वेब", "निर्णय + वेब"], online: "ऑनलाइन", messages: "संदेश" },
+  pa: { aiLabel: "AI ਕਾਨੂੰਨ ਮੈਚਰ ਨਤੀਜਾ", ragSec: "ਸੁਪਰੀਮ ਕੋਰਟ ਦੇ ਫ਼ੈਸਲਿਆਂ ਤੋਂ", webSec: "ਲਾਈਵ ਵੈੱਬ ਨਤੀਜੇ", lawSec: "ਮਿਲਦੇ ਕਾਨੂੰਨ ਅਤੇ ਧਾਰਾਵਾਂ", rgtSec: "ਤੁਹਾਡੇ ਕਾਨੂੰਨੀ ਅਧਿਕਾਰ", stpSec: "ਸਰਵਾਈਵਲ ਕਦਮ", prdSec: "ਕੇਸ ਜਾਣਕਾਰੀ", simSec: "ਮਿਲਦੇ ਸੁਪਰੀਮ ਕੋਰਟ ਫ਼ੈਸਲੇ", hlpSec: "ਹੈਲਪਲਾਈਨ ਅਤੇ ਸੰਪਰਕ", actSec: "ਅੱਗੇ ਤੁਸੀਂ ਕੀ ਕਰ ਸਕਦੇ ਹੋ", noRag: "ਫ਼ੈਸਲਾ ਡੇਟਾਬੇਸ ਵਿੱਚ ਕੋਈ ਖ਼ਾਸ ਮੇਲ ਨਹੀਂ ਮਿਲਿਆ।", hide: "ਲੁਕਾਓ", show: "ਦਿਖਾਓ", srcChunks: "ਸਰੋਤ ਅੰਸ਼", webResults: "ਵੈੱਬ ਨਤੀਜੇ", cases: "ਕੇਸ", successRate: "ਸਫਲਤਾ ਦਰ", duration: "ਮਿਆਦ", riskLevel: "ਜੋਖਮ ਪੱਧਰ", scCases: "SC ਕੇਸ", readAloud: "ਜਵਾਬ ਸੁਣੋ", deepRag: "ਡੂੰਘੀ ਖੋਜ", firDraft: "FIR ਡਰਾਫਟ", legalNotice: "ਕਾਨੂੰਨੀ ਨੋਟਿਸ", complaint: "ਖਪਤਕਾਰ ਸ਼ਿਕਾਇਤ", openSteps: "ਸਰਵਾਈਵਲ ਚੈੱਕਲਿਸਟ ਖੋਲ੍ਹੋ", analysisComplete: "ਇਸ ਲਈ ਨਤੀਜਾ:", chunks: "ਅੰਸ਼", scCasesFull: "SC ਕੇਸ", searching: "ਤੁਹਾਡੀ ਸਮੱਸਿਆ ਲਈ ਕਾਨੂੰਨ ਲੱਭੇ ਜਾ ਰਹੇ ਹਨ…", modes: ["ਸਿਰਫ਼ ਫ਼ੈਸਲੇ", "ਸਿਰਫ਼ ਵੈੱਬ", "ਫ਼ੈਸਲੇ + ਵੈੱਬ"], online: "ਆਨਲਾਈਨ", messages: "ਸੁਨੇਹੇ" },
   ur: { aiLabel: "AI قانون میچر نتیجہ", ragSec: "سپریم کورٹ کے فیصلوں سے", webSec: "لائیو ویب نتائج", lawSec: "متعلقہ قوانین اور دفعات", rgtSec: "آپ کے قانونی حقوق", stpSec: "سروائیول اقدامات", prdSec: "کیس کی معلومات", simSec: "ملتے جلتے سپریم کورٹ فیصلے", hlpSec: "ہیلپ لائنز اور رابطے", actSec: "آگے آپ کیا کر سکتے ہیں", noRag: "فیصلوں کے ڈیٹابیس میں کوئی مخصوص متن نہیں ملا۔", hide: "چھپائیں", show: "دکھائیں", srcChunks: "ماخذ حصے", webResults: "ویب نتائج", cases: "مقدمات", successRate: "کامیابی کی شرح", duration: "مدت", riskLevel: "خطرے کی سطح", scCases: "SC مقدمات", readAloud: "بلند آواز سے پڑھیں", deepRag: "گہری تلاش", firDraft: "FIR مسودہ", legalNotice: "قانونی نوٹس", complaint: "صارف شکایت", openSteps: "سروائیول چیک لسٹ کھولیں", analysisComplete: "اس کے لیے نتیجہ:", chunks: "حصے", scCasesFull: "SC مقدمات", searching: "آپ کے مسئلے کے لیے قوانین تلاش کیے جا رہے ہیں…", modes: ["صرف فیصلے", "صرف ویب", "فیصلے + ویب"], online: "آن لائن", messages: "پیغامات" },
   hx: { aiLabel: "AI Law Matcher result", ragSec: "Supreme Court judgments se", webSec: "Live web results", lawSec: "Matched laws aur sections", rgtSec: "Aapke qanooni haq", stpSec: "Survival steps", prdSec: "Case insight", simSec: "Similar Supreme Court decisions", hlpSec: "Helplines aur contacts", actSec: "Aage aap kya kar sakte hain", noRag: "Judgment database mein koi specific matching text nahi mila.", hide: "Chhupayein", show: "Dikhayein", srcChunks: "source passages", webResults: "web results", cases: "cases", successRate: "Safalta dar", duration: "Avadhi", riskLevel: "Jokhim", scCases: "SC cases", readAloud: "Zor se padhein", deepRag: "Deep search", firDraft: "FIR draft", legalNotice: "Qanooni notice", complaint: "Consumer complaint", openSteps: "Survival checklist kholein", analysisComplete: "Iske liye result:", chunks: "passages", scCasesFull: "SC cases", searching: "Aapki problem ke liye laws dhoondh rahe hain…", modes: ["Sirf judgments", "Sirf web", "Judgments + Web"], online: "Online", messages: "messages" }
 };
@@ -102,6 +111,39 @@ function AnalysisCard({ data, query, lang = "en" }) {
   const [showRag, setShowRag] = useState(false);
   const [showWeb, setShowWeb] = useState(false);
   const [showSim, setShowSim] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const speechLang = { en: "en-IN", hi: "hi-IN", pa: "pa-IN", ur: "ur-PK", hx: "en-IN" }[lang] || "en-IN";
+
+  useEffect(() => () => {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
+
+  const speakAnswer = () => {
+    if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+      window.alert(translate(lang, "Voice answer is not supported in this browser"));
+      return;
+    }
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const answer = data.gemini_answer?.replace(/\*/g, "").trim();
+    if (!answer) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(answer);
+    utterance.lang = speechLang;
+    utterance.rate = 0.9;
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = event => {
+      setSpeaking(false);
+      if (event.error !== "canceled" && event.error !== "interrupted") {
+        window.alert(translate(lang, "Voice answer could not be played"));
+      }
+    };
+    window.speechSynthesis.speak(utterance);
+  };
 
   return (
     <div className="res">
@@ -208,12 +250,9 @@ function AnalysisCard({ data, query, lang = "en" }) {
           <button className="btn btn-o btn-sm" onClick={() => nav("/documents?tab=fir")}><i className="fas fa-file-lines" /> {t("firDraft")}</button>
           <button className="btn btn-o btn-sm" onClick={() => nav("/documents?tab=notice")}><i className="fas fa-envelope" /> {t("legalNotice")}</button>
           <button className="btn btn-o btn-sm" onClick={() => nav("/documents?tab=complaint")}><i className="fas fa-gavel" /> {t("complaint")}</button>
-          <button className="btn btn-info btn-sm" onClick={() => {
-            if ("speechSynthesis" in window) {
-              const u2 = new SpeechSynthesisUtterance(`${analysis.title}. Success rate ${prediction.success_rate} percent. ${analysis.steps[0]}`);
-              u2.rate = 0.9; window.speechSynthesis.speak(u2);
-            }
-          }}><i className="fas fa-volume-high" /> {t("readAloud")}</button>
+          <button className="btn btn-info btn-sm" onClick={speakAnswer} aria-pressed={speaking}>
+            <i className={`fas fa-${speaking ? "stop" : "volume-high"}`} /> {speaking ? translate(lang, "Stop reading") : t("readAloud")}
+          </button>
           <button className="btn btn-info btn-sm" onClick={() => nav(`/rag?q=${encodeURIComponent(analysis.title)}`)}><i className="fas fa-database" /> {t("deepRag")}</button>
           <button className="btn btn-o btn-sm" onClick={async () => {
             try {
@@ -240,7 +279,7 @@ function AnalysisCard({ data, query, lang = "en" }) {
 export default function HomePage({ lang = "en" }) {
   const lc = LANG[lang] || LANG.en;
   const t = tr(lang);
-  const [msgs, setMsgs] = useState([{ id: 0, type: "ai", welcome: true }]);
+  const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showQ, setShowQ] = useState(true);
@@ -249,10 +288,36 @@ export default function HomePage({ lang = "en" }) {
   const msgsRef = useRef(null);
   const recRef = useRef(null);
   const taRef = useRef(null);
+  const chatGenerationRef = useRef(0);
   const [searchParams] = useSearchParams();
   const qHandledRef = useRef(null);
+  const tUI = (text) => translate(lang, text);
+  const startNewChat = () => {
+    chatGenerationRef.current += 1;
+    if (recRef.current) {
+      recRef.current.onresult = null;
+      recRef.current.onend = null;
+      recRef.current.onerror = null;
+      recRef.current.stop();
+      recRef.current = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setMsgs([]);
+    setInput("");
+    setLoading(false);
+    setListening(false);
+    setShowQ(true);
+    if (taRef.current) taRef.current.style.height = "auto";
+  };
 
   useEffect(() => { if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight; }, [msgs, loading]);
+  useEffect(() => () => {
+    if (recRef.current) {
+      recRef.current.onend = null;
+      recRef.current.onerror = null;
+      recRef.current.stop();
+    }
+  }, []);
 
   useEffect(() => {
     const q = searchParams.get("q");
@@ -265,74 +330,106 @@ export default function HomePage({ lang = "en" }) {
   const send = async (txt) => {
     const msg = txt || input.trim();
     if (!msg || loading) return;
+    const generation = chatGenerationRef.current;
     setInput(""); setShowQ(false);
     if (taRef.current) taRef.current.style.height = "auto";
     setMsgs(m => [...m, { id: Date.now(), type: "user", text: msg }]);
     setLoading(true);
     try {
       const data = await chatAPI(msg, mode, lang);
+      if (generation !== chatGenerationRef.current) return;
       setMsgs(m => [...m, { id: Date.now() + 1, type: "ai", query: msg, data }]);
       // Save to chat history for signed-in users (guests skip silently)
       if (localStorage.getItem("jl_token")) { try { await saveChatAPI(msg, data, mode); } catch {} }
     } catch {
-      setMsgs(m => [...m, { id: Date.now() + 1, type: "ai", text: t("offline") }]);
+      if (generation === chatGenerationRef.current) {
+        setMsgs(m => [...m, { id: Date.now() + 1, type: "ai", text: t("offline") }]);
+      }
+    } finally {
+      if (generation === chatGenerationRef.current) setLoading(false);
     }
-    setLoading(false);
   };
 
   const startVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("Voice input is not supported in this browser"); return; }
+    if (!SR) { window.alert(tUI("Voice input is not supported in this browser")); return; }
     const r = new SR();
     r.lang = { en: "en-IN", hi: "hi-IN", pa: "pa-IN", ur: "ur-PK", hx: "en-IN" }[lang] || "en-IN";
     let finalText = "";
     r.onstart = () => setListening(true);
     r.onresult = e => { finalText = Array.from(e.results).map(x => x[0].transcript).join(""); setInput(finalText); };
-    r.onend = () => { setListening(false); if (finalText.trim()) send(finalText.trim()); };
-    r.start(); recRef.current = r;
+    r.onend = () => { recRef.current = null; setListening(false); if (finalText.trim()) send(finalText.trim()); };
+    r.onerror = event => {
+      setListening(false);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        window.alert(tUI("Voice query could not be recorded"));
+      }
+    };
+    recRef.current = r;
+    try {
+      r.start();
+    } catch {
+      recRef.current = null;
+      setListening(false);
+      window.alert(tUI("Voice query could not be recorded"));
+    }
   };
 
-  const modeIcons = ["fa-landmark", "fa-globe", "fa-layer-group"];
-
   return (
-    <div className="container" style={{ paddingBottom: 64 }}>
-      {/* Hero */}
-      <section className="hero">
-        <div className="hero-script">PocketLaw</div>
-        <h1>{lc.t1}<em>{lc.t2}</em></h1>
-        <div className="hero-rule" />
-        <p>{lc.sub}</p>
-        <div className="hero-pill"><b>AI</b> {lc.pill} · Indian law in plain language</div>
-      </section>
-
-      <div className="matcher">
-        {/* Mode selector */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-          <div className="seg">
-            {["rag", "web", "both"].map((m, i) => (
-              <button key={m} className={mode === m ? "act" : ""} onClick={() => setMode(m)}>
-                <i className={`fas ${modeIcons[i]}`} /> {t("modes")[i]}
-              </button>
-            ))}
-          </div>
+    <div className="chat-workspace">
+      <aside className="chat-sidebar" aria-label={tUI("PocketLaw features")}>
+        <button type="button" className="chat-new-btn" onClick={startNewChat}>
+          <i className="fas fa-plus" /> {tUI("New chat")}
+        </button>
+        <div className="chat-sidebar-label">{tUI("Explore PocketLaw")}</div>
+        <nav className="chat-feature-nav" aria-label={tUI("Explore PocketLaw")}>
+          {CHAT_LINKS.map(([to, icon, label]) => (
+            <Link key={to} to={to} className="chat-feature-link">
+              <i className={`fas ${icon}`} />
+              <span>{tUI(label)}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="chat-sidebar-bottom">
+          <Link to="/chats" className="chat-feature-link">
+            <i className="fas fa-clock-rotate-left" />
+            <span>{tUI("Chat History")}</span>
+          </Link>
+          <p>{tUI("General legal information only — not a substitute for professional legal advice.")}</p>
         </div>
+      </aside>
 
-        {/* Chatbox */}
-        <div className="chatbox">
-          <div className="chat-head">
+      <section className="chat-panel" aria-label={tUI("PocketLaw · AI Law Matcher")}>
+        <div className="chat-head">
+          <div className="chat-head-title">
             <div className="chat-av"><i className="fas fa-scale-balanced" /></div>
             <div>
-              <div className="chat-title">PocketLaw · AI Law Matcher</div>
-              <div className="chat-status">{t("online")} · {t("modes")[["rag", "web", "both"].indexOf(mode)]} · {msgs.length - 1} {t("messages")}</div>
+              <div className="chat-title">{tUI("PocketLaw · AI Law Matcher")}</div>
+              <div className="chat-status">{t("online")}</div>
             </div>
           </div>
+          <label className="chat-mode-control">
+            <span>{tUI("Answer sources")}</span>
+            <select className="sel" value={mode} onChange={e => setMode(e.target.value)} aria-label={tUI("Answer sources")}>
+              {["rag", "web", "both"].map((value, index) => (
+                <option key={value} value={value}>{t("modes")[index]}</option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-          <div ref={msgsRef} className="chat-msgs">
+        <div ref={msgsRef} className={`chat-msgs${msgs.length === 0 ? " is-empty" : ""}`}>
+          {msgs.length === 0 && (
+            <div className="chat-welcome">
+              <div className="chat-welcome-mark"><i className="fas fa-scale-balanced" /></div>
+              <h1>{tUI("How can I help with your legal problem?")}</h1>
+              <p>{tUI("Describe what happened in your own words. You do not need to know legal terms.")}</p>
+            </div>
+          )}
             {msgs.map(msg => (
               <div key={msg.id} className={`msg ${msg.type}`}>
                 <div className="msg-av">{msg.type === "user" ? <i className="fas fa-user" /> : <i className="fas fa-scale-balanced" />}</div>
                 <div className={`bubble${msg.data ? " wide" : ""}`}>
-                  {msg.welcome && <p style={{ whiteSpace: "pre-line" }}>{lc.welcome}</p>}
                   {msg.text && <p style={{ whiteSpace: "pre-line" }}>{msg.text}</p>}
                   {msg.data && (
                     <>
@@ -352,11 +449,17 @@ export default function HomePage({ lang = "en" }) {
                 </div>
               </div>
             )}
-          </div>
-
-          {showQ && (
+        </div>
+        <div className="chat-composer-wrap">
+          {showQ && msgs.length === 0 && (
             <div className="chat-quick">
-              {QUICK.map(p => <button key={p} className="chip" onClick={() => send(p)}>{p}</button>)}
+              {QUICK.slice(0, 4).map((prompt, index) => (
+                <button key={prompt} className="chat-suggestion" onClick={() => send(prompt)}>
+                  <i className={`fas ${["fa-house", "fa-mobile-screen-button", "fa-briefcase", "fa-cart-shopping"][index]}`} />
+                  <span>{tUI(prompt)}</span>
+                  <i className="fas fa-arrow-up-right-from-square suggestion-arrow" />
+                </button>
+              ))}
             </div>
           )}
 
@@ -364,53 +467,28 @@ export default function HomePage({ lang = "en" }) {
             <div className="field">
               <textarea ref={taRef} value={input} onChange={e => setInput(e.target.value)} placeholder={lc.ph} rows={1}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                onInput={e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px"; }}
+                onInput={e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px"; }}
               />
-              <button className={`mic${listening ? " on" : ""}`} onClick={listening ? () => recRef.current?.stop() : startVoice} title="Voice input" aria-label="Voice input">
+              <button className={`mic${listening ? " on" : ""}`} onClick={listening ? () => recRef.current?.stop() : startVoice} title={tUI("Voice input")} aria-label={tUI("Voice input")}>
                 <i className={`fas fa-microphone${listening ? "-slash" : ""}`} />
               </button>
             </div>
-            <button className="btn btn-g send" onClick={() => send()} disabled={loading} aria-label="Send">
+            <button className="btn btn-g send" onClick={() => send()} disabled={loading || !input.trim()} aria-label={tUI("Send")}>
               <i className="fas fa-paper-plane" />
             </button>
           </div>
+          <p className="chat-disclaimer">{tUI("PocketLaw can make mistakes. Check important information with a lawyer.")}</p>
         </div>
-      </div>
-
-      {/* How it works */}
-      <div className="how">
-        {lc.how.map(([h, p], i) => (
-          <div key={h} className="how-step">
-            <div className="how-num">{i + 1}</div>
-            <div><h4>{h}</h4><p>{p}</p></div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modules */}
-      <div className="modules">
-        {[
-          ["/steps", "fa-list-check", "Legal Survival Steps", "A step-by-step checklist: immediate actions, evidence to collect, your rights and who to contact."],
-          ["/documents", "fa-file-signature", "Document Drafting", "Fill a simple form and download a legal notice, FIR draft, affidavit or consumer complaint."],
-          ["/laws", "fa-book-open", "Indian Laws Explorer", "Browse key Indian Acts and sections explained in simple language."],
-        ].map(([to, ic, h, p]) => (
-          <Link key={to} to={to} className="module">
-            <div className="mi"><i className={`fas ${ic}`} /></div>
-            <h4>{h}</h4>
-            <p>{p}</p>
-            <span className="go">Open <i className="fas fa-arrow-right" /></span>
-          </Link>
-        ))}
-      </div>
 
       {listening && (
         <div className="listen">
-          <p style={{ fontSize: 14, color: "var(--muted)" }}>Listening… speak now</p>
+          <p style={{ fontSize: 14, color: "var(--muted)" }}>{tUI("Listening… speak now")}</p>
           <div className="wave">{[0, .1, .2, .3, .4].map(d => <div key={d} style={{ animationDelay: `${d}s` }} />)}</div>
-          <p style={{ fontSize: 13.5, color: "var(--ink)" }}>{input || "Describe your legal problem"}</p>
-          <button className="btn btn-sm btn-danger" style={{ marginTop: 10 }} onClick={() => recRef.current?.stop()}>Stop</button>
+          <p style={{ fontSize: 13.5, color: "var(--ink)" }}>{input || tUI("Describe your legal problem")}</p>
+          <button className="btn btn-sm btn-danger" style={{ marginTop: 10 }} onClick={() => recRef.current?.stop()}>{tUI("Stop")}</button>
         </div>
       )}
+      </section>
     </div>
   );
 }

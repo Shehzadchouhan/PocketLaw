@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { chatAPI } from "../services/api";
+import { translate } from "../i18n";
 
 const EXAMPLES = [
   "Landlord not returning security deposit",
@@ -19,14 +20,24 @@ function docFor(title = "") {
 }
 
 export default function StepsPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const loc = useLocation();
   const nav = useNavigate();
   const [query, setQuery] = useState(loc.state?.query || "");
   const [data, setData] = useState(loc.state?.data || null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState({});
+  const [listening, setListening] = useState(false);
+  const recRef = React.useRef(null);
 
   useEffect(() => { setDone({}); }, [data]);
+  useEffect(() => () => {
+    if (recRef.current) {
+      recRef.current.onend = null;
+      recRef.current.onerror = null;
+      recRef.current.stop();
+    }
+  }, []);
 
   const run = async (q = query) => {
     if (!q.trim() || loading) return;
@@ -41,6 +52,38 @@ export default function StepsPage({ lang = "en" }) {
     setLoading(false);
   };
 
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { window.alert(t("Voice input is not supported in this browser")); return; }
+    const recognition = new SR();
+    recognition.lang = { en: "en-IN", hi: "hi-IN", pa: "pa-IN", ur: "ur-PK", hx: "en-IN" }[lang] || "en-IN";
+    let finalText = "";
+    recognition.onstart = () => setListening(true);
+    recognition.onresult = event => {
+      finalText = Array.from(event.results).map(result => result[0].transcript).join("");
+      setQuery(finalText);
+    };
+    recognition.onend = () => {
+      recRef.current = null;
+      setListening(false);
+      if (finalText.trim()) run(finalText.trim());
+    };
+    recognition.onerror = event => {
+      setListening(false);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        window.alert(t("Voice query could not be recorded"));
+      }
+    };
+    recRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      recRef.current = null;
+      setListening(false);
+      window.alert(t("Voice query could not be recorded"));
+    }
+  };
+
   const a = data?.analysis;
   const steps = a?.steps || [];
   const count = steps.filter((_, i) => done[i]).length;
@@ -50,23 +93,26 @@ export default function StepsPage({ lang = "en" }) {
   return (
     <div className="page">
       <div className="shdr">
-        <div className="stag"><i className="fas fa-list-check" /> Interactive Legal Survival Steps</div>
-        <h2 className="stit">Know exactly <em>what to do next</em></h2>
-        <p className="ssub">Describe your situation and get a practical checklist — immediate actions, your rights, the laws involved and who to contact.</p>
+        <div className="stag"><i className="fas fa-list-check" /> {t("Interactive Legal Survival Steps")}</div>
+        <h2 className="stit">{t("Know exactly ")}<em>{t("what to do next")}</em></h2>
+        <p className="ssub">{t("Describe your situation and get a practical checklist — immediate actions, your rights, the laws involved and who to contact.")}</p>
       </div>
 
       {/* Problem input */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <input style={{ flex: 1, minWidth: 220 }} placeholder="Describe your problem, e.g. my employer hasn't paid my salary…" value={query}
+          <input style={{ flex: 1, minWidth: 220 }} placeholder={t("Describe your problem, e.g. my employer hasn't paid my salary…")} value={query}
             onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && run()} />
+          <button className={`mic${listening ? " on" : ""}`} type="button" onClick={listening ? () => recRef.current?.stop() : startVoice} title={t("Voice input")} aria-label={t("Voice input")}>
+            <i className={`fas fa-microphone${listening ? "-slash" : ""}`} />
+          </button>
           <button className="btn btn-g" onClick={() => run()} disabled={loading}>
-            {loading ? <><span className="ldr"><span /><span /><span /></span> Building…</> : <><i className="fas fa-wand-magic-sparkles" /> Get my steps</>}
+            {loading ? <><span className="ldr"><span /><span /><span /></span> {t("Building…")}</> : <><i className="fas fa-wand-magic-sparkles" /> {t("Get my steps")}</>}
           </button>
         </div>
         {!data && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            {EXAMPLES.map(e => <button key={e} className="chip" onClick={() => run(e)}>{e}</button>)}
+            {EXAMPLES.map(e => <button key={e} className="chip" onClick={() => run(e)}>{t(e)}</button>)}
           </div>
         )}
       </div>
@@ -76,8 +122,8 @@ export default function StepsPage({ lang = "en" }) {
           <div style={{ width: 64, height: 64, borderRadius: 18, background: "var(--accent-soft)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 14 }}>
             <i className="fas fa-route" />
           </div>
-          <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, marginBottom: 6 }}>Your checklist will appear here</h3>
-          <p style={{ color: "var(--muted)", maxWidth: 440, margin: "0 auto" }}>Type your problem above or pick an example. You can tick off each step as you complete it.</p>
+          <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, marginBottom: 6 }}>{t("Your checklist will appear here")}</h3>
+          <p style={{ color: "var(--muted)", maxWidth: 440, margin: "0 auto" }}>{t("Type your problem above or pick an example. You can tick off each step as you complete it.")}</p>
         </div>
       )}
 
@@ -93,7 +139,7 @@ export default function StepsPage({ lang = "en" }) {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontFamily: "var(--serif)", fontSize: 26, fontWeight: 600, color: pct === 100 ? "var(--ok)" : "var(--ink)" }}>{count}/{steps.length}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>steps done</div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>{t("steps done")}</div>
               </div>
             </div>
             <div className="pbar" style={{ marginBottom: 20 }}><div className="pfill" style={{ width: `${pct}%`, background: pct === 100 ? "var(--ok)" : "var(--accent)" }} /></div>
@@ -103,7 +149,7 @@ export default function StepsPage({ lang = "en" }) {
                 <button key={i} className={`check-item${done[i] ? " done" : ""}`} onClick={() => setDone(d => ({ ...d, [i]: !d[i] }))}>
                   <span className="box">{done[i] && <i className="fas fa-check" />}</span>
                   <span>
-                    <span className="sn">{i === 0 ? "Do this first" : `Step ${i + 1}`}</span>
+                    <span className="sn">{i === 0 ? t("Do this first") : `${t("Step")} ${i + 1}`}</span>
                     <span className="txt">{s}</span>
                   </span>
                 </button>
@@ -112,19 +158,19 @@ export default function StepsPage({ lang = "en" }) {
 
             {pct === 100 && (
               <div className="ibox ok" style={{ marginTop: 18, marginBottom: 0 }}>
-                <i className="fas fa-circle-check" /> Great work — you've completed every step. If the issue isn't resolved, consider free legal aid (NALSA 15100) or a lawyer.
+                <i className="fas fa-circle-check" /> {t("Great work — you've completed every step. If the issue isn't resolved, consider free legal aid (NALSA 15100) or a lawyer.")}
               </div>
             )}
 
             <hr className="dvd" />
-            <div className="res-h"><i className="fas fa-shield-halved" />Your legal rights</div>
+            <div className="res-h"><i className="fas fa-shield-halved" />{t("Your legal rights")}</div>
             <ul className="blist ok">{(a.rights || []).map((r, i) => <li key={i}>{r}</li>)}</ul>
           </div>
 
           {/* Side panel */}
           <div className="side-sticky">
             <div className="card">
-              <div className="res-h"><i className="fas fa-phone" />Who to contact</div>
+              <div className="res-h"><i className="fas fa-phone" />{t("Who to contact")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(a.helplines || []).map((h, i) => <div key={i} className="help-chip"><i className="fas fa-phone" />{h}</div>)}
                 <div className="help-chip" style={{ background: "var(--surface2)", color: "var(--ink2)" }}><i className="fas fa-hands-holding" />Free legal aid (NALSA): 15100</div>
@@ -132,18 +178,18 @@ export default function StepsPage({ lang = "en" }) {
             </div>
 
             <div className="card">
-              <div className="res-h"><i className="fas fa-scale-balanced" />Laws involved</div>
+              <div className="res-h"><i className="fas fa-scale-balanced" />{t("Laws involved")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(a.laws || []).map((l, i) => <div key={i} className="law-item"><i className="fas fa-book" /><span>{l}</span></div>)}
               </div>
             </div>
 
             <div className="card" style={{ background: "var(--ink)", borderColor: "var(--ink)", color: "var(--bg)" }}>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--bg)" }}>Need a document?</div>
+              <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--bg)" }}>{t("Need a document?")}</div>
               <p style={{ fontSize: 13.5, opacity: .8, marginBottom: 14 }}>Generate a ready-to-edit {docLabel.toLowerCase()} for this situation.</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn btn-g btn-sm" onClick={() => nav(`/documents?tab=${docTab}`)}><i className="fas fa-file-signature" /> {docLabel}</button>
-                <button className="btn btn-sm" style={{ background: "rgba(255,255,255,.12)", color: "var(--bg)" }} onClick={() => nav("/documents")}>All templates</button>
+                <button className="btn btn-g btn-sm" onClick={() => nav(`/documents?tab=${docTab}`)}><i className="fas fa-file-signature" /> {t(docLabel)}</button>
+                <button className="btn btn-sm" style={{ background: "rgba(255,255,255,.12)", color: "var(--bg)" }} onClick={() => nav("/documents")}>{t("All templates")}</button>
               </div>
             </div>
           </div>
@@ -151,7 +197,7 @@ export default function StepsPage({ lang = "en" }) {
       )}
 
       <p style={{ textAlign: "center", fontSize: 12.5, color: "var(--muted)", marginTop: 28 }}>
-        <i className="fas fa-circle-info" /> These steps are general guidance, not legal advice. For serious matters, consult a lawyer.
+        <i className="fas fa-circle-info" /> {t("These steps are general guidance, not legal advice. For serious matters, consult a lawyer.")}
       </p>
     </div>
   );

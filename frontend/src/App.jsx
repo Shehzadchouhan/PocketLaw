@@ -13,6 +13,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ChatHistoryPage from "./pages/ChatHistoryPage";
 import ProfilePage from "./pages/ProfilePage";
 import "./App.css";
+import { LanguageContext, translate } from "./i18n";
 
 // ── Auth Context ──
 export const AuthContext = createContext();
@@ -41,6 +42,7 @@ function useOutside(ref, onOut) {
 }
 
 function Header({ theme, toggleTheme, lang, setLang }) {
+  const t = (text) => translate(lang, text);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -73,7 +75,7 @@ function Header({ theme, toggleTheme, lang, setLang }) {
           <div className="brand-mark"><i className="fas fa-scale-balanced" /></div>
           <div>
             <div className="brand-name">Pocket<span>Law</span></div>
-            <div className="brand-tag">Type Your Problem, Get Your Legal Rights</div>
+            <div className="brand-tag">{t("Type Your Problem, Get Your Legal Rights")}</div>
           </div>
         </Link>
 
@@ -81,19 +83,19 @@ function Header({ theme, toggleTheme, lang, setLang }) {
           {MAIN_LINKS.map(([to, ic, lbl]) => (
             <li key={to}>
               <NavLink to={to} end={to === "/"} className={linkClass}>
-                <i className={`fas ${ic}`} /> {lbl}
+              <i className={`fas ${ic}`} /> {t(lbl)}
               </NavLink>
             </li>
           ))}
           <li className="nav-more" ref={moreRef}>
             <button className="nav-more-btn" onClick={() => setMoreOpen(o => !o)} style={moreActive ? { color: "var(--ink)", background: "var(--accent-soft)" } : {}}>
-              More <i className={`fas fa-chevron-${moreOpen ? "up" : "down"}`} style={{ fontSize: 10 }} />
+              {t("More")} <i className={`fas fa-chevron-${moreOpen ? "up" : "down"}`} style={{ fontSize: 10 }} />
             </button>
             <div className={`nav-drop${moreOpen ? " open" : ""}`}>
               {MORE_LINKS.map(([to, ic, lbl, sub]) => (
                 <NavLink key={to} to={to} className={linkClass}>
                   <i className={`fas ${ic}`} />
-                  <span>{lbl}<small>{sub}</small></span>
+                  <span>{t(lbl)}<small>{t(sub)}</small></span>
                 </NavLink>
               ))}
             </div>
@@ -101,14 +103,14 @@ function Header({ theme, toggleTheme, lang, setLang }) {
         </ul>
 
         <div className="nav-right">
-          <select className="lang-sel" value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Language">
+          <select className="lang-sel" value={lang} onChange={(e) => setLang(e.target.value)} aria-label={t("Language")}>
             <option value="en">English</option>
             <option value="hi">हिंदी</option>
             <option value="pa">ਪੰਜਾਬੀ</option>
             <option value="ur">اردو</option>
             <option value="hx">Hinglish</option>
           </select>
-          <button className="icon-btn" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle theme">
+          <button className="icon-btn" onClick={toggleTheme} title={t("Toggle theme")} aria-label={t("Toggle theme")}>
             <i className={`fas fa-${theme === "dark" ? "sun" : "moon"}`} />
           </button>
 
@@ -122,14 +124,14 @@ function Header({ theme, toggleTheme, lang, setLang }) {
                 <i className="fas fa-chevron-down" style={{ fontSize: 10, color: "var(--muted)" }} />
               </button>
               <div className={`nav-drop user-drop${userOpen ? " open" : ""}`}>
-                <NavLink to="/profile"><i className="fas fa-user" /><span>Profile</span></NavLink>
-                <NavLink to="/chats"><i className="fas fa-clock-rotate-left" /><span>Chat History</span></NavLink>
-                <a href="#logout" onClick={(e) => { e.preventDefault(); handleLogout(); }}><i className="fas fa-arrow-right-from-bracket" /><span>Logout</span></a>
+                <NavLink to="/profile"><i className="fas fa-user" /><span>{t("Profile")}</span></NavLink>
+                <NavLink to="/chats"><i className="fas fa-clock-rotate-left" /><span>{t("Chat History")}</span></NavLink>
+                <a href="#logout" onClick={(e) => { e.preventDefault(); handleLogout(); }}><i className="fas fa-arrow-right-from-bracket" /><span>{t("Logout")}</span></a>
               </div>
             </div>
           ) : (
             <button className="btn btn-navy btn-sm" onClick={() => nav("/login")}>
-              <i className="fas fa-user" /> <span className="lbl">Login</span>
+              <i className="fas fa-user" /> <span className="lbl">{t("Login")}</span>
             </button>
           )}
 
@@ -142,7 +144,8 @@ function Header({ theme, toggleTheme, lang, setLang }) {
   );
 }
 
-function Footer() {
+function Footer({ lang }) {
+  const t = (text) => translate(lang, text);
   return (
     <footer className="ftr">
       <div className="ftr-in">
@@ -152,31 +155,31 @@ function Footer() {
             <div className="brand-name">Pocket<span>Law</span></div>
           </Link>
           <p style={{ marginTop: 12, maxWidth: 360 }}>
-            Type your problem in simple words and get the Indian laws, your legal rights and clear next steps — all in one place.
+            {t("Type your problem in simple words and get the Indian laws, your legal rights and clear next steps — all in one place.")}
           </p>
         </div>
         <div>
-          <h4>Core features</h4>
+          <h4>{t("Core features")}</h4>
           <ul>
-            <li><Link to="/">AI Law Matcher</Link></li>
-            <li><Link to="/steps">Legal Survival Steps</Link></li>
-            <li><Link to="/documents">Legal Document Drafting</Link></li>
-            <li><Link to="/laws">Indian Laws Explorer</Link></li>
+            <li><Link to="/">{t("AI Law Matcher")}</Link></li>
+            <li><Link to="/steps">{t("Legal Survival Steps")}</Link></li>
+            <li><Link to="/documents">{t("Legal Document Drafting")}</Link></li>
+            <li><Link to="/laws">{t("Indian Laws Explorer")}</Link></li>
           </ul>
         </div>
         <div>
-          <h4>Explore</h4>
+          <h4>{t("Explore")}</h4>
           <ul>
-            <li><Link to="/search">Case Search</Link></li>
-            <li><Link to="/rag">Deep Search</Link></li>
-            <li><Link to="/dashboard">Analytics</Link></li>
-            <li><a href="https://nalsa.gov.in" target="_blank" rel="noopener noreferrer">Free Legal Aid (NALSA)</a></li>
+            <li><Link to="/search">{t("Case Search")}</Link></li>
+            <li><Link to="/rag">{t("Deep Search")}</Link></li>
+            <li><Link to="/dashboard">{t("Analytics")}</Link></li>
+            <li><a href="https://nalsa.gov.in" target="_blank" rel="noopener noreferrer">{t("Free Legal Aid (NALSA)")}</a></li>
           </ul>
         </div>
       </div>
       <div className="ftr-bottom">
-        <span>© {new Date().getFullYear()} PocketLaw · Type Your Problem, Get Your Legal Rights</span>
-        <span><i className="fas fa-circle-info" /> General legal information only — not a substitute for professional legal advice.</span>
+        <span>© {new Date().getFullYear()} PocketLaw · {t("Type Your Problem, Get Your Legal Rights")}</span>
+        <span><i className="fas fa-circle-info" /> {t("General legal information only — not a substitute for professional legal advice.")}</span>
       </div>
     </footer>
   );
@@ -223,6 +226,7 @@ export default function App() {
   return (
     <AuthContext.Provider value={authValue}>
       <Router>
+        <LanguageContext.Provider value={lang}>
         <div className="app-container">
           <Header theme={theme} toggleTheme={toggleTheme} lang={lang} setLang={setLang} />
 
@@ -230,19 +234,19 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage lang={lang} />} />
               <Route path="/steps" element={<StepsPage lang={lang} />} />
-              <Route path="/dashboard" element={<DashboardPage theme={theme} />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/rag" element={<RAGSearchPage />} />
-              <Route path="/laws" element={<LawsPage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/chats" element={<ChatHistoryPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/dashboard" element={<DashboardPage theme={theme} lang={lang} />} />
+              <Route path="/search" element={<SearchPage lang={lang} />} />
+              <Route path="/rag" element={<RAGSearchPage lang={lang} />} />
+              <Route path="/laws" element={<LawsPage lang={lang} />} />
+              <Route path="/documents" element={<DocumentsPage lang={lang} />} />
+              <Route path="/login" element={<LoginPage lang={lang} />} />
+              <Route path="/register" element={<RegisterPage lang={lang} />} />
+              <Route path="/chats" element={<ChatHistoryPage lang={lang} />} />
+              <Route path="/profile" element={<ProfilePage lang={lang} />} />
             </Routes>
           </main>
 
-          <Footer />
+          <Footer lang={lang} />
 
           <Toaster
             position="bottom-right"
@@ -259,6 +263,7 @@ export default function App() {
             }}
           />
         </div>
+        </LanguageContext.Provider>
       </Router>
     </AuthContext.Provider>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { dlFIR, dlNotice, dlAffidavit, dlComplaint, saveDocAPI } from "../services/api";
+import { translate, useLanguage } from "../i18n";
 
 const TABS = [
   { id: "fir", l: "FIR Draft", ic: "fa-file-lines", d: "Report a crime to the police (CrPC 154 / BNSS 173)" },
@@ -11,12 +12,14 @@ const TABS = [
 ];
 
 function F({ label, id, type = "text", ph, v, chg, rows, opts, req, span }) {
+  const lang = useLanguage();
+  const t = (text) => translate(lang, text);
   return (
     <div className="fg" style={span ? { gridColumn: "span 2" } : {}}>
-      <label>{label}{req && <span style={{ color: "var(--err)", marginLeft: 2 }}>*</span>}</label>
-      {opts ? <select value={v} onChange={e => chg(e.target.value)} className="sel">{opts.map(o => <option key={o}>{o}</option>)}</select>
-        : rows ? <textarea rows={rows} placeholder={ph} value={v} onChange={e => chg(e.target.value)} />
-          : <input type={type} placeholder={ph} value={v} onChange={e => chg(e.target.value)} />}
+      <label>{t(label)}{req && <span style={{ color: "var(--err)", marginLeft: 2 }}>*</span>}</label>
+      {opts ? <select value={v} onChange={e => chg(e.target.value)} className="sel">{opts.map(o => <option key={o} value={o}>{t(o)}</option>)}</select>
+        : rows ? <textarea rows={rows} placeholder={t(ph)} value={v} onChange={e => chg(e.target.value)} />
+          : <input type={type} placeholder={t(ph)} value={v} onChange={e => chg(e.target.value)} />}
     </div>
   );
 }
@@ -230,15 +233,17 @@ Date : ${dt}
 // ── Live Document Preview & Actions Component ────────────────────────────────
 
 function LivePreviewPanel({ tab, title, text, data, onDownload }) {
+  const lang = useLanguage();
+  const t = (message) => translate(lang, message);
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
-    toast.success("Draft copied to clipboard!");
+    toast.success(t("Draft copied to clipboard!"));
   };
 
   const handlePrint = () => {
     const w = window.open("", "_blank");
     if (!w) {
-      toast.error("Popup blocked. Please allow popups to print.");
+      toast.error(t("Popup blocked. Please allow popups to print."));
       return;
     }
     w.document.write(`<html><head><title>${title}</title><style>body{font-family:monospace;font-size:12px;line-height:1.5;padding:30px;color:#111;white-space:pre-wrap;}</style></head><body>${text.replace(/</g, "&lt;")}</body></html>`);
@@ -250,11 +255,11 @@ function LivePreviewPanel({ tab, title, text, data, onDownload }) {
   const handleSaveDraft = async () => {
     const token = localStorage.getItem("jl_token");
     if (!token) {
-      toast.error("Sign in to save drafts to your account");
+      toast.error(t("Sign in to save drafts to your account"));
       return;
     }
     try {
-      toast.loading("Saving draft to your account...");
+      toast.loading(t("Saving draft to your account..."));
       await saveDocAPI({
         doc_type: tab,
         title: `${title} - ${data.name || data.sender_name || "Draft"}`,
@@ -262,10 +267,10 @@ function LivePreviewPanel({ tab, title, text, data, onDownload }) {
         rendered_content: text
       });
       toast.dismiss();
-      toast.success("Draft saved successfully to your account!");
+      toast.success(t("Draft saved successfully to your account!"));
     } catch (e) {
       toast.dismiss();
-      toast.error("Failed to save draft");
+      toast.error(t("Failed to save draft"));
     }
   };
 
@@ -273,21 +278,21 @@ function LivePreviewPanel({ tab, title, text, data, onDownload }) {
     <div style={{ marginTop: 24, borderTop: "1px solid var(--border)", paddingTop: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <span className="tag tok"><i className="fas fa-eye" /> Live Document Preview</span>
-          <span style={{ fontSize: 12, color: "var(--dim)", marginLeft: 8 }}>Updates in real-time as you fill the form</span>
+          <span className="tag tok"><i className="fas fa-eye" /> {t("Live Document Preview")}</span>
+          <span style={{ fontSize: 12, color: "var(--dim)", marginLeft: 8 }}>{t("Updates in real-time as you fill the form")}</span>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn btn-sm btn-o" onClick={handleCopy} title="Copy draft text to clipboard">
-            <i className="fas fa-copy" /> Copy
+          <button className="btn btn-sm btn-o" onClick={handleCopy} title={t("Copy draft text to clipboard")}>
+            <i className="fas fa-copy" /> {t("Copy")}
           </button>
-          <button className="btn btn-sm btn-o" onClick={handlePrint} title="Print formatted document">
-            <i className="fas fa-print" /> Print
+          <button className="btn btn-sm btn-o" onClick={handlePrint} title={t("Print formatted document")}>
+            <i className="fas fa-print" /> {t("Print")}
           </button>
-          <button className="btn btn-sm btn-o" onClick={handleSaveDraft} title="Save draft to account">
-            <i className="fas fa-bookmark" /> Save Draft
+          <button className="btn btn-sm btn-o" onClick={handleSaveDraft} title={t("Save draft to account")}>
+            <i className="fas fa-bookmark" /> {t("Save Draft")}
           </button>
-          <button className="btn btn-sm btn-g" onClick={onDownload} title="Download official court-ready PDF">
-            <i className="fas fa-file-pdf" /> Download PDF
+          <button className="btn btn-sm btn-g" onClick={onDownload} title={t("Download official court-ready PDF")}>
+            <i className="fas fa-file-pdf" /> {t("Download PDF")}
           </button>
         </div>
       </div>
@@ -303,22 +308,24 @@ function LivePreviewPanel({ tab, title, text, data, onDownload }) {
 // ── Form Components ──────────────────────────────────────────────────────────
 
 function FIRForm() {
+  const lang = useLanguage();
+  const t = (text) => translate(lang, text);
   const [d, setD] = useState({ name: "", age: "", guardian: "", address: "", phone: "", email: "", station: "", district: "Ludhiana", state: "Punjab", crime_type: "Online Fraud", date: "", time: "", place: "", witnesses: "", description: "", evidence: "", relief: "" });
   const s = k => v => setD(p => ({ ...p, [k]: v }));
   
   const dl = async () => {
-    if (!d.name) { toast.error("Enter your name"); return; }
-    toast.loading("Generating Court-Ready PDF...");
+    if (!d.name) { toast.error(t("Enter your name")); return; }
+    toast.loading(t("Generating Court-Ready PDF..."));
     await dlFIR(d);
     toast.dismiss();
-    toast.success("FIR Draft PDF downloaded!");
+    toast.success(t("FIR Draft PDF downloaded!"));
   };
 
   const previewText = buildFIRText(d);
 
   return (
     <div>
-      <div className="ibox">Fill details to generate an official court-ready FIR draft under Section 154 CrPC / Section 173 BNSS.</div>
+      <div className="ibox">{t("Fill details to generate an official court-ready FIR draft under Section 154 CrPC / Section 173 BNSS.")}</div>
       <div className="g2">
         <F label="Full Name" ph="Rajesh Kumar" v={d.name} chg={s("name")} req />
         <F label="Age" type="number" ph="35" v={d.age} chg={s("age")} />
@@ -339,7 +346,7 @@ function FIRForm() {
         <F label="Relief Sought" ph="Investigation, arrest, recovery of money..." v={d.relief} chg={s("relief")} />
       </div>
       <div style={{ marginTop: 20 }}>
-        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> Download FIR Draft (PDF)</button>
+        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> {t("Download FIR Draft (PDF)")}</button>
       </div>
       <LivePreviewPanel tab="fir" title="FIR Draft" text={previewText} data={d} onDownload={dl} />
     </div>
@@ -347,23 +354,25 @@ function FIRForm() {
 }
 
 function NoticeForm() {
+  const lang = useLanguage();
+  const t = (text) => translate(lang, text);
   const [d, setD] = useState({ sender_name: "", sender_phone: "", sender_address: "", sender_email: "", sender_city: "Ludhiana", recipient_name: "", recipient_address: "", subject: "", days: "15", law: "", facts: "", demand: "" });
   const s = k => v => setD(p => ({ ...p, [k]: v }));
   
   const dl = async () => {
-    if (!d.sender_name) { toast.error("Enter your name"); return; }
-    toast.loading("Generating Legal Notice PDF...");
+    if (!d.sender_name) { toast.error(t("Enter your name")); return; }
+    toast.loading(t("Generating Legal Notice PDF..."));
     await dlNotice(d);
     toast.dismiss();
-    toast.success("Legal Notice PDF downloaded!");
+    toast.success(t("Legal Notice PDF downloaded!"));
   };
 
   const previewText = buildNoticeText(d);
 
   return (
     <div>
-      <div className="ibox">Formal Legal Notice under Section 80 CPC style. Send via Registered Speed Post + Email.</div>
-      <div className="form-sec">FROM (Your Details)</div>
+      <div className="ibox">{t("Formal Legal Notice under Section 80 CPC style. Send via Registered Speed Post + Email.")}</div>
+      <div className="form-sec">{t("FROM (Your Details)")}</div>
       <div className="g2">
         <F label="Your Full Name" ph="Rajesh Kumar" v={d.sender_name} chg={s("sender_name")} req />
         <F label="Phone" ph="+91 98765 43210" v={d.sender_phone} chg={s("sender_phone")} />
@@ -372,7 +381,7 @@ function NoticeForm() {
         <F label="Full Address" ph="Complete address" v={d.sender_address} chg={s("sender_address")} span />
       </div>
       <hr className="dvd" />
-      <div className="form-sec">TO (Recipient)</div>
+      <div className="form-sec">{t("TO (Recipient)")}</div>
       <div className="g2">
         <F label="Recipient Name/Company" ph="Company / Landlord Name" v={d.recipient_name} chg={s("recipient_name")} req />
         <F label="Response Days" type="number" ph="15" v={d.days} chg={s("days")} />
@@ -383,7 +392,7 @@ function NoticeForm() {
         <F label="Your Demand" ph="Refund of ₹50,000 / Replacement / Reinstatement..." rows={2} v={d.demand} chg={s("demand")} req span />
       </div>
       <div style={{ marginTop: 20 }}>
-        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> Download Legal Notice (PDF)</button>
+        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> {t("Download Legal Notice (PDF)")}</button>
       </div>
       <LivePreviewPanel tab="notice" title="Legal Notice" text={previewText} data={d} onDownload={dl} />
     </div>
@@ -391,22 +400,24 @@ function NoticeForm() {
 }
 
 function AffidavitForm() {
+  const lang = useLanguage();
+  const t = (text) => translate(lang, text);
   const [d, setD] = useState({ name: "", age: "", guardian: "", occupation: "", address: "", city: "Ludhiana", court: "", case_ref: "", purpose: "", statement: "" });
   const s = k => v => setD(p => ({ ...p, [k]: v }));
   
   const dl = async () => {
-    if (!d.name) { toast.error("Enter your name"); return; }
-    toast.loading("Generating Affidavit PDF...");
+    if (!d.name) { toast.error(t("Enter your name")); return; }
+    toast.loading(t("Generating Affidavit PDF..."));
     await dlAffidavit(d);
     toast.dismiss();
-    toast.success("Affidavit PDF downloaded!");
+    toast.success(t("Affidavit PDF downloaded!"));
   };
 
   const previewText = buildAffidavitText(d);
 
   return (
     <div>
-      <div className="ibox">Sworn Affidavit with formal Deponent Verification and Notary Public / Oath Commissioner jurat.</div>
+      <div className="ibox">{t("Sworn Affidavit with formal Deponent Verification and Notary Public / Oath Commissioner jurat.")}</div>
       <div className="g2">
         <F label="Full Name" ph="Rajesh Kumar" v={d.name} chg={s("name")} req />
         <F label="Age" type="number" ph="35" v={d.age} chg={s("age")} />
@@ -420,7 +431,7 @@ function AffidavitForm() {
         <F label="Statement of Facts" ph="I solemnly declare that..." rows={5} v={d.statement} chg={s("statement")} req span />
       </div>
       <div style={{ marginTop: 20 }}>
-        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> Download Affidavit (PDF)</button>
+        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> {t("Download Affidavit (PDF)")}</button>
       </div>
       <LivePreviewPanel tab="affidavit" title="Sworn Affidavit" text={previewText} data={d} onDownload={dl} />
     </div>
@@ -428,23 +439,25 @@ function AffidavitForm() {
 }
 
 function ComplaintForm() {
+  const lang = useLanguage();
+  const t = (text) => translate(lang, text);
   const [d, setD] = useState({ name: "", address: "", phone: "", email: "", district: "Ludhiana", state: "Punjab", company: "", company_address: "", purchase_date: "", amount: "", product: "", invoice: "", facts: "", relief: "", documents: "" });
   const s = k => v => setD(p => ({ ...p, [k]: v }));
   
   const dl = async () => {
-    if (!d.name) { toast.error("Enter your name"); return; }
-    toast.loading("Generating Complaint PDF...");
+    if (!d.name) { toast.error(t("Enter your name")); return; }
+    toast.loading(t("Generating Complaint PDF..."));
     await dlComplaint(d);
     toast.dismiss();
-    toast.success("Consumer Complaint PDF downloaded!");
+    toast.success(t("Consumer Complaint PDF downloaded!"));
   };
 
   const previewText = buildComplaintText(d);
 
   return (
     <div>
-      <div className="ibox"><strong>File FREE at edaakhil.nic.in</strong> — Consumer Helpline: 1800-11-4000 (Toll Free)<br />District: up to ₹50L | State: up to ₹2Cr | National: above ₹2Cr</div>
-      <div className="form-sec">Complainant</div>
+      <div className="ibox"><strong>{t("File FREE at edaakhil.nic.in")}</strong> — {t("Consumer Helpline")}: 1800-11-4000 ({t("Toll Free")})<br />{t("District")}: {t("up to")} ₹50L | {t("State")}: {t("up to")} ₹2Cr | {t("National")}: {t("above")} ₹2Cr</div>
+      <div className="form-sec">{t("Complainant")}</div>
       <div className="g2">
         <F label="Your Full Name" ph="Rajesh Kumar" v={d.name} chg={s("name")} req />
         <F label="Phone" ph="+91 98765 43210" v={d.phone} chg={s("phone")} />
@@ -454,7 +467,7 @@ function ComplaintForm() {
         <F label="Your Address" ph="Complete address" v={d.address} chg={s("address")} span />
       </div>
       <hr className="dvd" />
-      <div className="form-sec">Opposite Party (Company/Seller)</div>
+      <div className="form-sec">{t("Opposite Party (Company/Seller)")}</div>
       <div className="g2">
         <F label="Company/Seller Name" ph="Amazon / ABC Pvt Ltd" v={d.company} chg={s("company")} req />
         <F label="Company Address" ph="Company address" v={d.company_address} chg={s("company_address")} />
@@ -470,14 +483,15 @@ function ComplaintForm() {
         <F label="Documents Enclosed" ph="1. Invoice 2. Warranty 3. Company emails..." rows={2} v={d.documents} chg={s("documents")} span />
       </div>
       <div style={{ marginTop: 20 }}>
-        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> Download Consumer Complaint (PDF)</button>
+        <button className="btn btn-g" onClick={dl}><i className="fas fa-file-pdf" /> {t("Download Consumer Complaint (PDF)")}</button>
       </div>
       <LivePreviewPanel tab="complaint" title="Consumer Complaint" text={previewText} data={d} onDownload={dl} />
     </div>
   );
 }
 
-export default function DocumentsPage() {
+export default function DocumentsPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [sp] = useSearchParams();
   const [tab, setTab] = useState(sp.get("tab") || "fir");
   useEffect(() => { const t = sp.get("tab"); if (t) setTab(t); }, [sp]);
@@ -488,16 +502,16 @@ export default function DocumentsPage() {
   return (
     <div className="page">
       <div className="shdr">
-        <div className="stag"><i className="fas fa-file-signature" /> Automated Legal Document Drafting</div>
-        <h2 className="stit">Draft a <em>legal document</em> in minutes</h2>
-        <p className="ssub">Pick a document, fill in a simple form, review the real-time live preview, and download a court-ready PDF template.</p>
+        <div className="stag"><i className="fas fa-file-signature" /> {t("Automated Legal Document Drafting")}</div>
+        <h2 className="stit">{t("Draft a legal document in minutes")}</h2>
+        <p className="ssub">{t("Pick a document, fill in a simple form, review the real-time live preview, and download a court-ready PDF template.")}</p>
       </div>
       <div className="doc-picker">
         {TABS.map(t => (
           <button key={t.id} className={`doc-card${tab === t.id ? " act" : ""}`} onClick={() => setTab(t.id)}>
             <span className="di"><i className={`fas ${t.ic}`} /></span>
-            <b>{t.l}</b>
-            <small>{t.d}</small>
+            <b>{translate(lang, t.l)}</b>
+            <small>{translate(lang, t.d)}</small>
           </button>
         ))}
       </div>
@@ -505,14 +519,14 @@ export default function DocumentsPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <span className="di" style={{ width: 40, height: 40, borderRadius: 11, background: "var(--accent-soft)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}><i className={`fas ${cur.ic}`} /></span>
           <div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 21, fontWeight: 600 }}>{cur.l}</div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>{cur.d}</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 21, fontWeight: 600 }}>{translate(lang, cur.l)}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{translate(lang, cur.d)}</div>
           </div>
         </div>
         {forms[tab]}
       </div>
       <p style={{ textAlign: "center", fontSize: 12.5, color: "var(--muted)", marginTop: 20 }}>
-        <i className="fas fa-circle-info" /> Generated documents are reference templates formatted for Indian courts and authorities. Please review them (ideally with a lawyer) before filing.
+        <i className="fas fa-circle-info" /> {t("Generated documents are reference templates formatted for Indian courts and authorities. Please review them (ideally with a lawyer) before filing.")}
       </p>
     </div>
   );

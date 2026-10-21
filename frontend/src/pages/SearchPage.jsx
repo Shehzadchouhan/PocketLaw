@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { searchAPI, caseAPI, getBookmarksAPI, addBookmarkAPI, removeBookmarkAPI } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-function Modal({ c, onClose, isBookmarked, onToggleBookmark }) {
+function Modal({ c, onClose, isBookmarked, onToggleBookmark, lang = "en" }) {
+  const t = (text) => translate(lang, text);
   if (!c) return null;
   return (
     <div className="ovrl" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -16,16 +18,16 @@ function Modal({ c, onClose, isBookmarked, onToggleBookmark }) {
             style={{ shrink: 0 }}
           >
             <i className={`fa${isBookmarked ? "s" : "r"} fa-bookmark`} style={{ color: isBookmarked ? "var(--gold)" : "inherit", marginRight: 6 }} />
-            {isBookmarked ? "Bookmarked" : "Bookmark"}
+            {isBookmarked ? t("Bookmarked") : t("Bookmark")}
           </button>
         </div>
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          <span className={`tag t${c.case_type}`}>{c.case_type}</span>
-          <span className={`tag ${c.outcome === "Allowed" ? "tok" : c.outcome === "Dismissed" ? "terr" : "twarn"}`}>{c.outcome}</span>
+          <span className={`tag t${c.case_type}`}>{t(c.case_type)}</span>
+          <span className={`tag ${c.outcome === "Allowed" ? "tok" : c.outcome === "Dismissed" ? "terr" : "twarn"}`}>{t(c.outcome)}</span>
         </div>
-        <div className="ibox"><strong>File:</strong> {c.filename}</div>
-        <div className="ibox"><strong>Summary:</strong><br />{c.summary || "Supreme Court judgment."}</div>
-        {c.full_text && <div className="ibox" style={{ fontFamily: "monospace", fontSize: 12 }}><strong>Text Extract:</strong><br />{c.full_text.substring(0, 600)}...</div>}
+        <div className="ibox"><strong>{t("File")}:</strong> {c.filename}</div>
+        <div className="ibox"><strong>{t("Summary")}:</strong><br />{c.summary || t("Supreme Court judgment.")}</div>
+        {c.full_text && <div className="ibox" style={{ fontFamily: "monospace", fontSize: 12 }}><strong>{t("Text Extract")}:</strong><br />{c.full_text.substring(0, 600)}...</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <button
             className="btn btn-o btn-sm"
@@ -34,7 +36,7 @@ function Modal({ c, onClose, isBookmarked, onToggleBookmark }) {
               toast.success("Citation and summary copied to clipboard");
             }}
           >
-            <i className="fas fa-copy" /> Copy Citation
+            <i className="fas fa-copy" /> {t("Copy Citation")}
           </button>
         </div>
       </div>
@@ -42,7 +44,8 @@ function Modal({ c, onClose, isBookmarked, onToggleBookmark }) {
   );
 }
 
-export default function SearchPage() {
+export default function SearchPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [out, setOut] = useState("");
@@ -119,24 +122,24 @@ export default function SearchPage() {
   return (
     <div className="page">
       <div className="shdr">
-        <div className="stag"><i className="fas fa-gavel" /> Case Search</div>
-        <h2 className="stit">Browse <em>Supreme Court judgments</em></h2>
-        <p className="ssub">Filter real judgments by category and outcome to see how courts have decided similar matters.</p>
+        <div className="stag"><i className="fas fa-gavel" /> {t("Case Search")}</div>
+        <h2 className="stit">{t("Browse ")}<em>{t("Supreme Court judgments")}</em></h2>
+        <p className="ssub">{t("Filter real judgments by category and outcome to see how courts have decided similar matters.")}</p>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <input style={{ flex: 1, minWidth: 200 }} placeholder="Search keyword..." value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch(1)} />
+        <input style={{ flex: 1, minWidth: 200 }} placeholder={t("Search keyword...")} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch(1)} />
         <select className="sel" style={{ minWidth: 140 }} value={cat} onChange={e => setCat(e.target.value)}>
-          <option value="">All Categories</option>
-          {["Criminal", "Consumer", "Property", "Family", "Labour", "Civil", "Constitutional"].map(c => <option key={c}>{c}</option>)}
+          <option value="">{t("All Categories")}</option>
+          {["Criminal", "Consumer", "Property", "Family", "Labour", "Civil", "Constitutional"].map(c => <option key={c} value={c}>{t(c)}</option>)}
         </select>
         <select className="sel" style={{ minWidth: 140 }} value={out} onChange={e => setOut(e.target.value)}>
-          <option value="">All Outcomes</option>
-          {["Allowed", "Dismissed", "Partially Allowed"].map(o => <option key={o}>{o}</option>)}
+          <option value="">{t("All Outcomes")}</option>
+          {["Allowed", "Dismissed", "Partially Allowed"].map(o => <option key={o} value={o}>{t(o)}</option>)}
         </select>
-        <button className="btn btn-g" onClick={() => doSearch(1)}><i className="fas fa-search" /> Search</button>
-        <button className="btn btn-o" onClick={() => { setQ(""); setCat(""); setOut(""); doSearch(1); }}>Clear</button>
+        <button className="btn btn-g" onClick={() => doSearch(1)}><i className="fas fa-search" /> {t("Search")}</button>
+        <button className="btn btn-o" onClick={() => { setQ(""); setCat(""); setOut(""); doSearch(1); }}>{t("Clear")}</button>
       </div>
-      <p style={{ color: "var(--dim)", fontSize: 13, marginBottom: 16 }}>{loading ? "Searching..." : `${total} cases found`}</p>
+      <p style={{ color: "var(--dim)", fontSize: 13, marginBottom: 16 }}>{loading ? t("Searching...") : `${total} ${t("cases found")}`}</p>
       {loading ? <div style={{ textAlign: "center", padding: 60 }}><div className="ldr"><span /><span /><span /></div></div> : (
         <div className="ga">
           {res.map(c => {
@@ -144,13 +147,13 @@ export default function SearchPage() {
             return (
               <div key={c.id} className="card" style={{ cursor: "pointer", position: "relative" }} onClick={() => loadCase(c)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span className={`tag t${c.case_type}`}>{c.case_type}</span>
+                  <span className={`tag t${c.case_type}`}>{t(c.case_type)}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     {isBookmarked && <i className="fas fa-bookmark" style={{ color: "var(--gold)", fontSize: 12 }} title="Bookmarked" />}
                     <span style={{ fontSize: 12, color: "var(--dim)" }}>{c.year || "N/A"}</span>
                   </div>
                 </div>
-                <div style={{ marginBottom: 8 }}><span className={`tag ${c.outcome === "Allowed" ? "tok" : c.outcome === "Dismissed" ? "terr" : "twarn"}`} style={{ fontSize: 10 }}>{c.outcome}</span></div>
+                <div style={{ marginBottom: 8 }}><span className={`tag ${c.outcome === "Allowed" ? "tok" : c.outcome === "Dismissed" ? "terr" : "twarn"}`} style={{ fontSize: 10 }}>{t(c.outcome)}</span></div>
                 <p style={{ fontSize: 12.5, color: "var(--dim)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.summary || "SC Judgment."}</p>
                 <p style={{ fontSize: 10, color: "var(--dim)", marginTop: 8, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.filename?.substring(0, 50)}...</p>
               </div>
@@ -159,9 +162,9 @@ export default function SearchPage() {
         </div>
       )}
       {total > 20 && <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 28 }}>
-        {page > 1 && <button className="btn btn-o" onClick={() => doSearch(page - 1)}>← Prev</button>}
-        <span style={{ padding: "10px 16px", color: "var(--dim)" }}>Page {page}</span>
-        {page * 20 < total && <button className="btn btn-o" onClick={() => doSearch(page + 1)}>Next →</button>}
+        {page > 1 &&         <button className="btn btn-o" onClick={() => doSearch(page - 1)}>← {t("Prev")}</button>}
+        <span style={{ padding: "10px 16px", color: "var(--dim)" }}>{t("Page")} {page}</span>
+        {page * 20 < total && <button className="btn btn-o" onClick={() => doSearch(page + 1)}>{t("Next")} →</button>}
       </div>}
       {sel && (
         <Modal
@@ -169,6 +172,7 @@ export default function SearchPage() {
           onClose={() => setSel(null)}
           isBookmarked={bookmarkedIds.has(String(sel.id))}
           onToggleBookmark={toggleBookmark}
+          lang={lang}
         />
       )}
     </div>

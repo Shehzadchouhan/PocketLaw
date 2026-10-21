@@ -12,6 +12,8 @@ import sys
 import unittest
 import json
 import io
+import importlib
+from unittest.mock import patch
 
 # Ensure backend directory is in path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +27,20 @@ import app as flask_app
 
 
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+class TestGeminiInitialization(unittest.TestCase):
+    def test_configured_gemini_does_not_connect_during_import(self):
+        import gemini_service
+
+        try:
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
+                with patch("google.generativeai.GenerativeModel") as model_factory:
+                    importlib.reload(gemini_service)
+                    model_factory.assert_not_called()
+        finally:
+            importlib.reload(gemini_service)
+
 
 class TestDatabaseOperations(unittest.TestCase):
     """Tests for SQLite database ORM operations."""

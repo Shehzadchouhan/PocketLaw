@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../App";
 import { getProfileAPI, updateProfileAPI, changePasswordAPI, getDocsAPI, getBookmarksAPI, getChatsAPI } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-export default function ProfilePage() {
+export default function ProfilePage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const nav = useNavigate();
   const { user, login, logout } = useAuth();
   const [profile, setProfile] = useState({ email: "", name: "", bio: "", avatar_url: "" });
@@ -109,11 +111,11 @@ export default function ProfilePage() {
       <div className="auth-wrap">
         <div className="card auth-card" style={{ textAlign: "center", padding: 32 }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--accent-soft)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14 }}><i className="fas fa-user" /></div>
-          <h2 style={{ fontFamily: "var(--serif)", fontSize: 26 }}>Profile</h2>
-          <p style={{ marginTop: 8, color: "var(--muted)" }}>You are not logged in. Please login or register to view and edit your profile.</p>
+          <h2 style={{ fontFamily: "var(--serif)", fontSize: 26 }}>{t("Profile")}</h2>
+          <p style={{ marginTop: 8, color: "var(--muted)" }}>{t("You are not logged in. Please login or register to view and edit your profile.")}</p>
           <div style={{ display: 'flex', gap: 8, marginTop: 18, justifyContent: "center" }}>
-            <button className="btn btn-g" onClick={() => nav('/login')}>Login</button>
-            <button className="btn btn-o" onClick={() => nav('/register')}>Register</button>
+            <button className="btn btn-g" onClick={() => nav('/login')}>{t("Login")}</button>
+            <button className="btn btn-o" onClick={() => nav('/register')}>{t("Register")}</button>
           </div>
         </div>
       </div>
@@ -125,31 +127,31 @@ export default function ProfilePage() {
   return (
     <div className="page" style={{ maxWidth: 720 }}>
       <div className="shdr" style={{ textAlign: "left", marginBottom: 28 }}>
-        <div className="stag"><i className="fas fa-user" /> Account</div>
-        <h1 className="stit">Your profile</h1>
+        <div className="stag"><i className="fas fa-user" /> {t("Account")}</div>
+        <h1 className="stit">{t("Your profile")}</h1>
       </div>
 
       {/* Activity Overview */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <h3 style={{ fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--ink2)", fontWeight: 700, marginBottom: 14 }}>
-          Activity Overview
+          {t("Activity Overview")}
         </h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12 }}>
           <div className="kbox">
             <div className="knum" style={{ color: "var(--gold)" }}>{counts.chats}</div>
-            <div className="klbl">Legal Queries Asked</div>
+            <div className="klbl">{t("Legal Queries Asked")}</div>
           </div>
           <div className="kbox">
             <div className="knum" style={{ color: "var(--ok)" }}>{counts.docs}</div>
-            <div className="klbl">Drafted Documents</div>
+            <div className="klbl">{t("Drafted Documents")}</div>
           </div>
           <div className="kbox">
             <div className="knum" style={{ color: "var(--accent)" }}>{counts.bookmarks}</div>
-            <div className="klbl">Bookmarked Precedents</div>
+            <div className="klbl">{t("Bookmarked Precedents")}</div>
           </div>
           <div className="kbox">
-            <div className="knum" style={{ color: "var(--ok)" }}>Active</div>
-            <div className="klbl">Account Status</div>
+            <div className="knum" style={{ color: "var(--ok)" }}>{t("Active")}</div>
+            <div className="klbl">{t("Account Status")}</div>
           </div>
         </div>
       </div>
@@ -160,31 +162,31 @@ export default function ProfilePage() {
             ? <img src={profile.avatar_url} alt="" style={{ width: 64, height: 64, borderRadius: 18, objectFit: "cover" }} />
             : <div className="user-initial" style={{ width: 64, height: 64, borderRadius: 18, fontSize: 24 }}>{initial}</div>}
           <div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 21, fontWeight: 600 }}>{profile.name || "Your name"}</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 21, fontWeight: 600 }}>{profile.name || t("Your name")}</div>
             <div style={{ fontSize: 13.5, color: "var(--muted)" }}>{profile.email}</div>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="fg">
-            <label>Email (read-only)</label>
+            <label>{t("Email (read-only)")}</label>
             <input type="email" value={profile.email} readOnly />
           </div>
           <div className="fg">
-            <label>Name</label>
+            <label>{t("Name")}</label>
             <input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} required />
           </div>
           <div className="fg">
-            <label>Bio</label>
+            <label>{t("Bio")}</label>
             <textarea value={profile.bio} onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))} rows={4} />
           </div>
           <div className="fg">
-            <label>Avatar URL</label>
+            <label>{t("Avatar URL")}</label>
             <input value={profile.avatar_url} onChange={e => setProfile(p => ({ ...p, avatar_url: e.target.value }))} placeholder="https://…" />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
-          <button className="btn btn-g" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save changes'}</button>
-          <button className="btn btn-o" type="button" onClick={() => nav('/chats')}><i className="fas fa-clock-rotate-left" /> Chat history</button>
+          <button className="btn btn-g" type="submit" disabled={saving}>{saving ? t("Saving...") : t("Save changes")}</button>
+          <button className="btn btn-o" type="button" onClick={() => nav('/chats')}><i className="fas fa-clock-rotate-left" /> {t("Chat history")}</button>
         </div>
       </form>
 
@@ -195,13 +197,13 @@ export default function ProfilePage() {
             <i className="fas fa-lock" />
           </span>
           <div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600 }}>Security & Password</div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>Update your account login password</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 18, fontWeight: 600 }}>{t("Security & Password")}</div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{t("Update your account login password")}</div>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="fg">
-            <label>Current Password</label>
+            <label>{t("Current Password")}</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -212,20 +214,20 @@ export default function ProfilePage() {
           </div>
           <div className="g2">
             <div className="fg">
-              <label>New Password</label>
+              <label>{t("New Password")}</label>
               <input
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder={t("At least 6 characters")}
                 value={pwForm.new_password}
                 onChange={e => setPwForm(p => ({ ...p, new_password: e.target.value }))}
                 required
               />
             </div>
             <div className="fg">
-              <label>Confirm New Password</label>
+              <label>{t("Confirm New Password")}</label>
               <input
                 type="password"
-                placeholder="Repeat new password"
+                placeholder={t("Repeat new password")}
                 value={pwForm.confirm_password}
                 onChange={e => setPwForm(p => ({ ...p, confirm_password: e.target.value }))}
                 required
@@ -235,7 +237,7 @@ export default function ProfilePage() {
         </div>
         <div style={{ marginTop: 20 }}>
           <button className="btn btn-g" type="submit" disabled={changingPw}>
-            {changingPw ? "Updating..." : "Update Password"}
+            {changingPw ? t("Updating...") : t("Update Password")}
           </button>
         </div>
       </form>

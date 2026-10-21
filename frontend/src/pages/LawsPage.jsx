@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { lawsAPI } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import { translate } from "../i18n";
 
-export default function LawsPage() {
+export default function LawsPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [laws, setLaws] = useState({});
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState(null);
@@ -19,12 +21,12 @@ export default function LawsPage() {
   return (
     <div className="page">
       <div className="shdr">
-        <div className="stag"><i className="fas fa-book-open" /> Indian Laws Explorer</div>
-        <h2 className="stit">Key <em>Indian laws</em>, simply explained</h2>
-        <p className="ssub">Tap any Act to see its key sections, then jump to related cases.</p>
+        <div className="stag"><i className="fas fa-book-open" /> {t("Indian Laws Explorer")}</div>
+        <h2 className="stit">{t("Key ")}<em>{t("Indian laws")}</em>{t(", simply explained")}</h2>
+        <p className="ssub">{t("Tap any Act to see its key sections, then jump to related cases.")}</p>
       </div>
       <div style={{ maxWidth: 400, margin: "0 auto 32px" }}>
-        <input placeholder="Filter laws..." value={filter} onChange={e => setFilter(e.target.value)} />
+        <input placeholder={t("Filter laws...")} value={filter} onChange={e => setFilter(e.target.value)} />
       </div>
       {loading ? <div style={{ textAlign: "center", padding: 60 }}><div className="ldr"><span /><span /><span /></div></div> : (
         <div className="gl">
@@ -35,7 +37,7 @@ export default function LawsPage() {
                 <span className={`tag t${law.cat}`} style={{ flexShrink: 0, marginLeft: 8 }}>{law.cat}</span>
               </div>
               <p style={{ fontSize: 12.5, color: "var(--dim)", lineHeight: 1.6 }}>{law.desc}</p>
-              <p style={{ fontSize: 11, color: "var(--gold)", marginTop: 10 }}>› {law.sections?.length} key sections · Click to explore</p>
+              <p style={{ fontSize: 11, color: "var(--gold)", marginTop: 10 }}>› {law.sections?.length} {t("key sections · Click to explore")}</p>
             </div>
           ))}
         </div>
@@ -50,7 +52,7 @@ export default function LawsPage() {
             <span className={`tag t${sel.cat}`} style={{ marginBottom: 16, display: "inline-block" }}>{sel.cat}</span>
             <div className="ibox">{sel.desc}</div>
             <div style={{ marginTop: 16 }}>
-              <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--gold)", marginBottom: 10 }}>Key Sections</p>
+              <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--gold)", marginBottom: 10 }}>{t("Key Sections")}</p>
               {sel.sections?.map((s, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ color: "var(--gold)" }}>›</span>
@@ -59,8 +61,8 @@ export default function LawsPage() {
               ))}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-              <button className="btn btn-g" onClick={() => { nav(`/search?category=${sel.cat}`); setSel(null); }}><i className="fas fa-search" /> Search Cases</button>
-              <button className="btn btn-o" onClick={() => { nav(`/rag?q=${encodeURIComponent(selName)}`); setSel(null); }}><i className="fas fa-database" /> Deep Search</button>
+              <button className="btn btn-g" onClick={() => { nav(`/search?category=${sel.cat}`); setSel(null); }}><i className="fas fa-search" /> {t("Search Cases")}</button>
+              <button className="btn btn-o" onClick={() => { nav(`/rag?q=${encodeURIComponent(selName)}`); setSel(null); }}><i className="fas fa-database" /> {t("Deep Search")}</button>
             </div>
           </div>
         </div>

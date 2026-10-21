@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getChatsAPI, clearChatsAPI, dlConsultation } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-export default function ChatHistoryPage() {
+export default function ChatHistoryPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [chats, setChats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -87,19 +89,19 @@ export default function ChatHistoryPage() {
   return (
     <div className="page" style={{ maxWidth: 840, margin: "0 auto" }}>
       <div className="shdr" style={{ marginBottom: 36 }}>
-        <div className="stag"><i className="fas fa-clock-rotate-left" /> Your consultations</div>
-        <h1 className="stit">Chat History</h1>
+        <div className="stag"><i className="fas fa-clock-rotate-left" /> {t("Your consultations")}</div>
+        <h1 className="stit">{t("Chat History")}</h1>
         <p style={{ color: "var(--dim)", marginTop: 12, fontSize: 14 }}>
-          {messages.length} legal consultations saved · {user?.name || user?.email || "User"}
+          {messages.length} {t("legal consultations saved")} · {user?.name || user?.email || "User"}
         </p>
       </div>
 
       {messages.length === 0 ? (
         <div className="card" style={{ padding: 48, textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
-          <h3 style={{ fontFamily: "var(--serif)", marginBottom: 8 }}>No conversations yet</h3>
+          <h3 style={{ fontFamily: "var(--serif)", marginBottom: 8 }}>{t("No conversations yet")}</h3>
           <p style={{ color: "var(--dim)", fontSize: 14, marginBottom: 24 }}>
-            Questions you ask on the Law Matcher will appear here with instant revisit and PDF export options
+            {t("Questions you ask on the Law Matcher will appear here with instant revisit and PDF export options")}
           </p>
           <button className="btn btn-g" onClick={() => nav("/")}><i className="fas fa-magnifying-glass" /> Type your problem</button>
         </div>
@@ -109,26 +111,26 @@ export default function ChatHistoryPage() {
             <div style={{ display: "flex", gap: 8, flex: 1, minWidth: 260 }}>
               <input
                 style={{ flex: 1, fontSize: 13 }}
-                placeholder="Search consultations..."
+                placeholder={t("Search consultations...")}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
                 <button className="btn btn-o btn-sm" onClick={() => setSearchTerm("")}>
-                  Clear
+                  {t("Clear")}
                 </button>
               )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-danger btn-sm" onClick={handleClear} title="Clear all consultation history">
-                <i className="fas fa-trash" /> Clear all
+                <i className="fas fa-trash" /> {t("Clear all")}
               </button>
             </div>
           </div>
 
           {filteredMessages.length === 0 ? (
             <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--dim)" }}>
-              No conversations matching "{searchTerm}"
+              {t("No conversations matching")} "{searchTerm}"
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -141,12 +143,12 @@ export default function ChatHistoryPage() {
                       </span>
                       <span className="tag" style={{ fontSize: 11 }}>
                         <i className="fas fa-robot" style={{ marginRight: 4 }} />
-                        {msg.mode || "both"}
+                        {t(msg.mode || "both")}
                       </span>
                     </div>
                     <span style={{ fontSize: 11.5, color: "var(--dim)" }}>
                       <i className="fas fa-clock" style={{ marginRight: 4 }} />
-                      {new Date(msg.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(msg.timestamp).toLocaleDateString({ hi: "hi-IN", pa: "pa-IN" }[lang] || "en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
 
@@ -174,10 +176,10 @@ export default function ChatHistoryPage() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                       <strong style={{ fontSize: 12, color: "var(--gold)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        <i className="fas fa-user" style={{ marginRight: 5 }} /> Your Query
+                        <i className="fas fa-user" style={{ marginRight: 5 }} /> {t("Your Query")}
                       </strong>
                       <span style={{ fontSize: 11, color: "var(--gold)", display: "flex", alignItems: "center", gap: 4 }}>
-                        <i className="fas fa-rotate-left" /> Revisit ↗
+                        <i className="fas fa-rotate-left" /> {t("Revisit")} ↗
                       </span>
                     </div>
                     <p style={{ fontSize: 13.5, margin: 0, lineHeight: 1.5, fontWeight: 500, color: "var(--ink)" }}>
@@ -189,7 +191,7 @@ export default function ChatHistoryPage() {
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                       <strong style={{ fontSize: 12, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        <i className="fas fa-scale-balanced" style={{ marginRight: 5 }} /> AI Legal Guidance
+                        <i className="fas fa-scale-balanced" style={{ marginRight: 5 }} /> {t("AI Legal Guidance")}
                       </strong>
                     </div>
                     <p style={{ fontSize: 13, margin: 0, lineHeight: 1.55, color: "var(--dim)", whiteSpace: "pre-line" }}>
@@ -204,7 +206,7 @@ export default function ChatHistoryPage() {
                       onClick={() => handleRevisit(msg.message)}
                       title="Revisit and re-run this inquiry in the Law Matcher"
                     >
-                      <i className="fas fa-rotate-left" /> Revisit Query
+                      <i className="fas fa-rotate-left" /> {t("Revisit Query")}
                     </button>
                     <button
                       className="btn btn-o btn-sm"
@@ -213,7 +215,7 @@ export default function ChatHistoryPage() {
                       title="Export this consultation as a court-style PDF document"
                     >
                       <i className="fas fa-file-pdf" style={{ color: "var(--gold)" }} />
-                      {exportingId === msg.id ? " Generating PDF..." : " Export PDF"}
+                      {exportingId === msg.id ? ` ${t("Generating PDF...")}` : ` ${t("Export PDF")}`}
                     </button>
                   </div>
                 </div>

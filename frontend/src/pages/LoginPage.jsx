@@ -3,8 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../App";
 import { loginAPI } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-export default function LoginPage() {
+export default function LoginPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,25 +32,25 @@ export default function LoginPage() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="shdr" style={{ marginBottom: 36 }}>
-          <div className="stag"><i className="fas fa-lock" /> PocketLaw account</div>
-          <h1 className="stit">Welcome Back</h1>
-          <p className="ssub">Sign in to save your conversations. You can also use PocketLaw as a guest.</p>
+          <div className="stag"><i className="fas fa-lock" /> {t("PocketLaw account")}</div>
+          <h1 className="stit">{t("Welcome Back")}</h1>
+          <p className="ssub">{t("Sign in to save your conversations. You can also use PocketLaw as a guest.")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card" style={{ padding: 32 }}>
           <div className="fg" style={{ marginBottom: 18 }}>
-            <label>Email Address</label>
+            <label>{t("Email Address")}</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
           </div>
           <div className="fg" style={{ marginBottom: 24 }}>
-            <label>Password</label>
+            <label>{t("Password")}</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
           </div>
           <button className="btn btn-g" style={{ width: "100%", justifyContent: "center", padding: 14, fontSize: 15 }} disabled={loading}>
-            {loading ? <span className="ldr"><span/><span/><span/></span> : "Sign in"}
+            {loading ? <span className="ldr"><span/><span/><span/></span> : t("Sign in")}
           </button>
           <p style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "var(--dim)" }}>
-            Don't have an account? <Link to="/register" style={{ color: "var(--gold)" }}>Create one</Link>
+            {t("Don't have an account?")} <Link to="/register" style={{ color: "var(--gold)" }}>{t("Create one")}</Link>
           </p>
         </form>
       </div>

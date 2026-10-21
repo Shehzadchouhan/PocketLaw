@@ -1,6 +1,7 @@
 """Gemini AI service – gracefully handles missing API key and missing dependencies."""
 import os
 import sys
+import time
 import warnings
 
 # Suppress library deprecation warnings on console
@@ -24,24 +25,8 @@ if GEMINI_API_KEY:
         import google.generativeai as genai
         _genai = genai
         _genai.configure(api_key=GEMINI_API_KEY)
-
-        # Probe candidate models for quota and connectivity
-        for model_name in _model_candidates:
-            try:
-                candidate = _genai.GenerativeModel(model_name)
-                probe = candidate.generate_content("Ping")
-                if probe and probe.text:
-                    _active_model = candidate
-                    _gemini_available = True
-                    print(f"Gemini AI enabled ({model_name})")
-                    break
-            except Exception:
-                continue
-
-        if not _gemini_available:
-            _active_model = _genai.GenerativeModel("gemini-3.1-flash-lite")
-            _gemini_available = True
-            print("Gemini AI enabled (gemini-3.1-flash-lite)")
+        _gemini_available = True
+        print("Gemini AI configured; model connection will be checked on demand")
     except Exception as e:
         print("Gemini init failed:", e)
 else:
@@ -49,7 +34,7 @@ else:
 
 
 def is_gemini_available():
-    """Returns True if Gemini has been successfully initialized with an API key."""
+    """Returns True when Gemini is configured; network access is checked per request."""
     return _gemini_available
 
 
@@ -62,23 +47,35 @@ def get_gemini_response(query):
     if not _gemini_available or _genai is None:
         raise RuntimeError("Gemini API key not configured. Set GEMINI_API_KEY in .env file.")
 
-    # Try active model first
+    deadline = time.monotonic() + 8
+
+    def generate(model):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        response = model.generate_content(
+            query,
+            request_options={"timeout": remaining}
+        )
+        return response.text if response and response.text else None
+
     if _active_model is not None:
         try:
-            resp = _active_model.generate_content(query)
-            if resp and resp.text:
-                return resp.text
+            answer = generate(_active_model)
+            if answer:
+                return answer
         except Exception:
             pass
 
-    # Failover across candidate models
     for model_name in _model_candidates:
+        if time.monotonic() >= deadline:
+            break
         try:
             fallback = _genai.GenerativeModel(model_name)
-            resp = fallback.generate_content(query)
-            if resp and resp.text:
+            answer = generate(fallback)
+            if answer:
                 _active_model = fallback
-                return resp.text
+                return answer
         except Exception:
             continue
 

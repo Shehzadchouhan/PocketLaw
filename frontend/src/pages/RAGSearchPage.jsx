@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ragAPI, webSearchAPI } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-export default function RAGSearchPage() {
+export default function RAGSearchPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [sp] = useSearchParams();
   const [query, setQuery] = useState(sp.get("q") || "");
   const [category, setCategory] = useState("");
@@ -40,15 +42,15 @@ export default function RAGSearchPage() {
   return (
     <div className="page">
       <div className="shdr">
-        <div className="stag"><i className="fas fa-database" /> Deep Search</div>
-        <h2 className="stit">Search inside <em>Supreme Court judgments</em></h2>
-        <p className="ssub">PocketLaw's retrieval engine scans thousands of passages from real judgments to find the text most relevant to your question.</p>
+        <div className="stag"><i className="fas fa-database" /> {t("Deep Search")}</div>
+        <h2 className="stit">{t("Search inside ")}<em>{t("Supreme Court judgments")}</em></h2>
+        <p className="ssub">{t("PocketLaw's retrieval engine scans thousands of passages from real judgments to find the text most relevant to your question.")}</p>
       </div>
 
       {/* Architecture diagram */}
       <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, marginBottom: 32, display: "flex", gap: 0, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
         {[
-          { icon: "👤", label: "User Query", sub: "Natural language" },
+          { icon: "👤", label: t("User Query"), sub: t("Natural language") },
           { arrow: true },
           { icon: "🔢", label: "TF-IDF Vectorizer", sub: "15,000 features" },
           { arrow: true },
@@ -72,31 +74,32 @@ export default function RAGSearchPage() {
       <div style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, marginBottom: 24 }}>
         <div className="g2" style={{ marginBottom: 16 }}>
           <div className="fg">
-            <label>Your Query</label>
-            <input placeholder="e.g. consumer refund rights, property dispute Section 138..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()} />
+            <label>{t("Your Query")}</label>
+            <input placeholder={t("e.g. consumer refund rights, property dispute Section 138...")} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && doSearch()} />
           </div>
           <div className="fg">
-            <label>Filter by Category (optional)</label>
+            <label>{t("Filter by Category (optional)")}</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className="sel">
-              <option value="">All Categories</option>
-              <option>Criminal</option><option>Consumer</option><option>Property</option>
-              <option>Family</option><option>Labour</option><option>Civil</option><option>Constitutional</option>
+              <option value="">{t("All Categories")}</option>
+              {["Criminal", "Consumer", "Property", "Family", "Labour", "Civil", "Constitutional"].map(category => (
+                <option key={category} value={category}>{t(category)}</option>
+              ))}
             </select>
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="btn btn-g" onClick={() => doSearch()} disabled={loading}>
-            {loading ? <><div className="ldr" style={{ transform: "scale(.7)" }}><span /><span /><span /></div> Searching...</> : <><i className="fas fa-search" /> Search judgments</>}
+            {loading ? <><div className="ldr" style={{ transform: "scale(.7)" }}><span /><span /><span /></div> {t("Searching...")}</> : <><i className="fas fa-search" /> {t("Search judgments")}</>}
           </button>
           <button className="btn btn-info" onClick={doWebSearch} disabled={webLoading}>
-            {webLoading ? "Searching web..." : <><i className="fas fa-globe" /> Also Search Web</>}
+            {webLoading ? t("Searching web...") : <><i className="fas fa-globe" /> {t("Also Search Web")}</>}
           </button>
-          <button className="btn btn-o" onClick={() => { setQuery(""); setResults(null); setWebResults([]); }}>Clear</button>
+          <button className="btn btn-o" onClick={() => { setQuery(""); setResults(null); setWebResults([]); }}>{t("Clear")}</button>
         </div>
 
         {/* Sample queries */}
         <div style={{ marginTop: 16 }}>
-          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>Try these queries:</p>
+          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>{t("Try these queries:")}</p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {["cheque bounce Section 138", "motor accident compensation MACT", "consumer deficiency of service", "property encroachment trespass", "bail conditions criminal appeal", "domestic violence protection order"].map(q => (
               <button key={q} onClick={() => { setQuery(q); doSearch(q); }} className="chip">{q}</button>
@@ -109,15 +112,15 @@ export default function RAGSearchPage() {
       {(results || webResults.length > 0) && (
         <>
           <div className="tabs">
-            <button className={`tab${activeTab === "rag" ? " act" : ""}`} onClick={() => setActiveTab("rag")}>📚 PDF RAG Results {results ? `(${results.total})` : ""}</button>
-            <button className={`tab${activeTab === "web" ? " act" : ""}`} onClick={() => setActiveTab("web")}>🌐 Web Results {webResults.length > 0 ? `(${webResults.length})` : ""}</button>
+            <button className={`tab${activeTab === "rag" ? " act" : ""}`} onClick={() => setActiveTab("rag")}>📚 {t("PDF RAG Results")} {results ? `(${results.total})` : ""}</button>
+            <button className={`tab${activeTab === "web" ? " act" : ""}`} onClick={() => setActiveTab("web")}>🌐 {t("Web Results")} {webResults.length > 0 ? `(${webResults.length})` : ""}</button>
           </div>
 
           {activeTab === "rag" && results && (
             <div>
               {/* Answer */}
               <div className="card" style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--ok)", marginBottom: 12, fontWeight: 600 }}>🤖 RAG Answer (Extracted from SC Judgments)</div>
+                <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5, color: "var(--ok)", marginBottom: 12, fontWeight: 600 }}>🤖 {t("RAG Answer (Extracted from SC Judgments)")}</div>
                 <div style={{ background: "var(--ok-soft)", border: "1px solid transparent", borderRadius: 10, padding: "14px 18px", fontSize: 13.5, lineHeight: 1.8, color: "var(--text)" }}>
                   {results.answer || "No specific matching text found. Try different keywords."}
                 </div>

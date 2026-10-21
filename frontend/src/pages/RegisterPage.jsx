@@ -3,8 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../App";
 import { registerAPI } from "../services/api";
 import toast from "react-hot-toast";
+import { translate } from "../i18n";
 
-export default function RegisterPage() {
+export default function RegisterPage({ lang = "en" }) {
+  const t = (text) => translate(lang, text);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,29 +34,29 @@ export default function RegisterPage() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="shdr" style={{ marginBottom: 36 }}>
-          <div className="stag"><i className="fas fa-user-plus" /> Join PocketLaw</div>
-          <h1 className="stit">Create Account</h1>
-          <p className="ssub">Free account to save your legal questions and answers.</p>
+          <div className="stag"><i className="fas fa-user-plus" /> {t("Join PocketLaw")}</div>
+          <h1 className="stit">{t("Create Account")}</h1>
+          <p className="ssub">{t("Free account to save your legal questions and answers.")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card" style={{ padding: 32 }}>
           <div className="fg" style={{ marginBottom: 18 }}>
-            <label>Full Name (optional)</label>
+            <label>{t("Full Name (optional)")}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="John Doe" />
           </div>
           <div className="fg" style={{ marginBottom: 18 }}>
-            <label>Email Address</label>
+            <label>{t("Email Address")}</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
           </div>
           <div className="fg" style={{ marginBottom: 24 }}>
-            <label>Password (min 6 characters)</label>
+            <label>{t("Password (min 6 characters)")}</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
           </div>
           <button className="btn btn-g" style={{ width: "100%", justifyContent: "center", padding: 14, fontSize: 15 }} disabled={loading}>
-            {loading ? <span className="ldr"><span/><span/><span/></span> : "Create account"}
+            {loading ? <span className="ldr"><span/><span/><span/></span> : t("Create account")}
           </button>
           <p style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "var(--dim)" }}>
-            Already have an account? <Link to="/login" style={{ color: "var(--gold)" }}>Sign in</Link>
+            {t("Already have an account?")} <Link to="/login" style={{ color: "var(--gold)" }}>{t("Sign in")}</Link>
           </p>
         </form>
       </div>
