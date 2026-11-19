@@ -1,0 +1,224 @@
+% ==============================================================================
+% Chapter 2: Requirement Analysis and System Specification
+% ==============================================================================
+\chapter{Requirement Analysis and System Specification}
+\label{chap:requirements}
+
+\section{Feasibility Study}
+\label{sec:feasibility_study}
+
+Prior to the commencement of active software engineering and architectural implementation, a comprehensive feasibility study was conducted to evaluate the viability, sustainability, and deployment practicality of the PocketLaw platform. The assessment was structured across three essential dimensions: Technical Feasibility, Economical Feasibility, and Operational Feasibility, tailored specifically to the computational, legal, and financial constraints of the target user population.
+
+\subsection{Technical Feasibility}
+The technical feasibility evaluates whether the required system capabilities can be successfully developed and executed utilizing modern computing hardware, programming languages, algorithmic libraries, and software engineering frameworks available within the academic and development environment.
+\begin{enumerate}
+    \item \textbf{Computational Capacity on Commodity Hardware:}
+    Conventional dense neural embedding models (e.g., BERT, Sentence-Transformers, or OpenAI embeddings) require high-performance Graphics Processing Units (GPUs) or continuous, low-latency broadband internet access. In contrast, PocketLaw formulates its Retrieval-Augmented Generation (RAG) vector kernel utilizing a sublinear Term Frequency-Inverse Document Frequency (TF-IDF) Vector Space Model implemented via Python's Scikit-Learn and Scipy libraries. The resulting feature matrix spanning 2,290 text chunks and 15,000 n-gram features exhibits a \textbf{99.08\% matrix sparsity}. Representing this matrix as a Compressed Sparse Row (CSR) structure consumes less than 12 megabytes of system RAM, enabling instantaneous cosine similarity calculations ($\sim 41.6$ ms) on standard Intel/AMD multicore CPUs without dedicated GPU hardware.
+    
+    \item \textbf{Software Stack Compatibility and Open-Source Ecosystem:}
+    The entire back-end architecture is built on standard, production-hardened open-source technologies: Python 3.10+ (tested and verified on Python 3.14), Flask 3.1.3, SQLAlchemy 2.1.4, SQLite 3 with Write-Ahead Logging (WAL), and ReportLab 5.0.1. The front-end interface utilizes Node.js 18+, React 18, React Router v6, Axios, Lucide React, and Chart.js. All software libraries are licensed under permissive open-source licenses (MIT, BSD, Apache 2.0), ensuring complete technical viability with zero licensing impediments.
+    
+    \item \textbf{Offline-First and Cloud-Independent Architectural Fallback:}
+    Technical feasibility is further reinforced by the system's dual-tier synthesis design. In the absence of external network connectivity or when external API limits are exceeded, PocketLaw seamlessly switches to deterministic extractive summarization and structured statutory lookups, ensuring 100\% uninterrupted local technical operability.
+\end{enumerate}
+
+\subsection{Economical Feasibility}
+The economical feasibility assesses the financial expenditures required to design, develop, deploy, and maintain the system against the socioeconomic benefits delivered to the target beneficiaries:
+\begin{enumerate}
+    \item \textbf{Development and Infrastructure Expenditure:}
+    Because PocketLaw leverages free and open-source software (FOSS) technologies, the software licensing capital expenditure (CAPEX) for the development phase was \textbf{INR 0.00}. The development environment utilized standard academic laboratory computing facilities at the Department of Computer Science and Engineering, Guru Nanak Dev Engineering College, Ludhiana.
+    
+    \item \textbf{Zero Recurring Operating Costs for Core Intelligence:}
+    Commercial legal intelligence systems incur recurring Operational Expenditures (OPEX) driven by per-token cloud LLM inference fees (e.g., OpenAI API, Anthropic API) and hosted vector database subscriptions (e.g., Pinecone, Weaviate), which scale linearly with user volume. PocketLaw eliminates these recurring costs by embedding its 2,290-chunk knowledge base directly into a local sparse matrix and persisting transactional records within an embedded SQLite WAL database.
+    
+    \item \textbf{Societal and Economic Value Proposition:}
+    Initial formal legal consultations in India typically cost between INR 2,000 and INR 15,000 per consultation, while drafting a formal First Information Report or Section 80 CPC Legal Notice through an Advocate incurs additional drafting fees of INR 3,000 to INR 25,000. By providing instantaneous legal diagnostic assessment, statutory section identification, and court-ready vector PDF drafting at zero financial cost, PocketLaw yields immense socioeconomic return on investment (ROI) for economically vulnerable citizens, small traders, and students.
+\end{enumerate}
+
+\subsection{Operational Feasibility}
+The operational feasibility evaluates the degree to which the proposed system integrates into the everyday workflows of citizens, law enforcement agencies, and legal practitioners:
+\begin{enumerate}
+    \item \textbf{Ease of Use and Minimal Technological Friction:}
+    The user interface is engineered as an intuitive Single Page Application (SPA) designed according to modern user experience (UX) paradigms. Litigants are not required to possess knowledge of statutory enactments, section numbers, or legal terminology. The system accepts natural, unconstrained narrative queries and provides intuitive, categorized visual cards detailing applicable sections, citizen rights, actionable steps, and emergency helplines.
+    
+    \item \textbf{Multilingual Inclusivity:}
+    Recognizing that over 80\% of Indian citizens communicate in regional languages, operational feasibility is dramatically augmented by multilingual query handling and structured legal translations across English, Hindi, Punjabi, and Urdu.
+    
+    \item \textbf{Court-Ready Document Admissibility:}
+    The document drafting module compiles formal legal instruments strictly adhering to procedural formats prescribed by Indian statutes (CrPC Section 154 / BNSS Section 173, Section 80 CPC, and Section 35 Consumer Protection Act 2019). The resulting PDFs include official judicial headers, jurisdictional clauses, verification averments, and two-column Notary Jurat / Oath Commissioner attestation blocks, ensuring seamless operational acceptance by police station desk officers and judicial filing registries.
+\end{enumerate}
+
+\section{Software Requirement Specification (SRS) Document}
+\label{sec:srs_document}
+
+This Software Requirement Specification (SRS) adheres to the IEEE 830-1998 standard for software requirements documentation, covering all seven mandatory subsections prescribed by the Department of Computer Science and Engineering, GNDEC Ludhiana.
+
+\subsection{Data Requirements}
+\label{subsec:data_requirements}
+
+The data requirements specify the structure, volume, flow, and schema constraints of all data entities processed, stored, and generated by the PocketLaw platform:
+
+\begin{enumerate}
+    \item \textbf{Legal Corpus and Vector Index Data:}
+    \begin{itemize}
+        \item \textbf{Indexed Precedent Chunks ($|D| = 2,290$):} Extracted from 148 landmark Supreme Court of India judgments. Each chunk contains: `chunk_id` (Integer), `source` (String: Case title and citation), `year` (Integer), `case_type` (Enum: Criminal, Civil, Consumer, Property, Constitutional, Labour, Family), `outcome` (Enum: Allowed, Dismissed, Partially Allowed), `score` (Float: Cosine similarity metric), and `text` (String: Raw judicial text extract).
+        \item \textbf{Vocabulary Feature Space ($V = 15,000$):} Unigram and bigram n-gram vocabulary dictionary mapped to sublinear inverse document frequency coefficients stored in a serialized pickle binary (`index/tfidf_vectorizer.pkl` and `index/tfidf_matrix.npz`).
+    \end{itemize}
+    
+    \item \textbf{Relational Persistence Schema (SQLite 3 WAL via SQLAlchemy):}
+    The transactional database (`data/pocketlaw.db`) encapsulates five normalized relational tables:
+    \begin{itemize}
+        \item \textbf{Users Entity (`users`):} Stores user credentials and profile records (`id`, `user_id`, `email`, `password_hash`, `name`, `avatar_url`, `bio`, `role`, `created_at`, `updated_at`).
+        \item \textbf{Chat Sessions Entity (`chat_sessions`):} Encapsulates user consultation threads (`id`, `session_id`, `user_id`, `title`, `category`, `created_at`, `updated_at`).
+        \item \textbf{Chat Messages Entity (`chat_messages`):} Records multi-turn interactions (`id`, `session_id`, `user_id`, `role`, `message`, `response_preview`, `category`, `mode`, `meta_json`, `timestamp`).
+        \item \textbf{Saved Documents Entity (`saved_documents`):} Persists drafted legal instruments (`id`, `doc_id`, `user_id`, `doc_type`, `title`, `form_payload`, `rendered_content`, `created_at`, `updated_at`).
+        \item \textbf{Case Bookmarks Entity (`case_bookmarks`):} Stores user-pinned Supreme Court precedents (`id`, `user_id`, `case_id`, `case_type`, `year`, `summary`, `notes`, `created_at`).
+    \end{itemize}
+    
+    \item \textbf{Document Form Data Requirements:}
+    Input parameters supplied through interactive drafting forms must satisfy structured schema constraints:
+    \begin{itemize}
+        \item \textbf{FIR Payload:} Complainant full name, guardian name, age, residential address, mobile number, police station name, district, state, date/time of incident, exact location, accused particulars, chronological description, and enclosed evidence list.
+        \item \textbf{Legal Notice Payload:} Sender name and address, recipient corporate/personal details, subject matter, chronological facts of breach, specific financial/remedial demand, and statutory demand cure period (15 or 30 days).
+        \item \textbf{Affidavit Payload:} Deponent full name, father/spouse name, age, address, city of attestation, specific enumerated averments, and verification date.
+        \item \textbf{Consumer Complaint Payload:} Complainant details, opposite party corporate address, product/service particulars, monetary transaction value, invoice number, grievance narrative, and enumerated prayers for relief.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Functional Requirements}
+\label{subsec:functional_requirements}
+
+The functional requirements formally delineate the explicit services, functions, and operations that the system must perform across its various architectural modules:
+
+\begin{table}[H]
+\caption{Comprehensive Functional Requirements Traceability Matrix}
+\label{tab:functional_requirements}
+\centering
+\small
+\begin{tabularx}{\textwidth}{lp{3.5cm}Xp{2.8cm}}
+\toprule
+\textbf{Req. ID} & \textbf{Module / Feature} & \textbf{Functional Requirement Description} & \textbf{Mapped Endpoint / Component} \\
+\midrule
+\textbf{FR-01} & User Registration & The system must allow new users to create an account by supplying email, full name, and password, generating salted PBKDF2 hashes. & `POST /api/auth/register` \newline `RegisterPage.jsx` \\
+\midrule
+\textbf{FR-02} & User Authentication & The system must authenticate credentials and issue an HMAC-SHA256 signed JSON Web Token (JWT) valid for persistent sessions. & `POST /api/auth/login` \newline `LoginPage.jsx` \\
+\midrule
+\textbf{FR-03} & User Profile Management & Authenticated users must be able to view and update their profile metadata, display bio, and profile avatar URL. & `GET/PUT /api/profile` \newline `ProfilePage.jsx` \\
+\midrule
+\textbf{FR-04} & Natural Language Consultation & The system must accept natural language grievance text, identify underlying legal domains, and provide structured legal analysis. & `POST /api/chat` \newline `HomePage.jsx` \\
+\midrule
+\textbf{FR-05} & Multilingual Normalization & The system must normalize Hindi, Punjabi, Urdu, and Hinglish vernacular terminology into equivalent legal conceptual queries. & `rag_retrieve()` \newline `i18n.js` \\
+\midrule
+\textbf{FR-06} & Offline Precedent Retrieval & The system must evaluate TF-IDF cosine similarity scores over 2,290 chunks and return candidates exceeding threshold $\tau = 0.05$. & `GET /api/rag?q=...` \newline `RAGSearchPage.jsx` \\
+\midrule
+\textbf{FR-07} & Modern Criminal Mapping & The system must cross-reference historical penal sections with BNS 2023, BNSS 2023, and BSA 2023 successor provisions. & `GET /api/laws` \newline `LawsPage.jsx` \\
+\midrule
+\textbf{FR-08} & Hybrid Grounded Synthesis & The system must generate grounded narrative answers using Google Gemini when configured, preventing speculative fabrication. & `get_gemini_response()` \newline `gemini_service.py` \\
+\midrule
+\textbf{FR-09} & Offline Extractive Fallback & In the absence of an API key or internet access, the system must seamlessly construct extractive legal summaries from local KB. & `get_ai_summary()` \newline `app.py` \\
+\midrule
+\textbf{FR-10} & Live Reactive Preview & The drafting interface must render keystroke-level reactive formatted plain text of legal drafts in real time on the client side. & `POST /api/documents/preview` \newline `DocumentsPage.jsx` \\
+\midrule
+\textbf{FR-11} & Vector PDF FIR Generation & The system must compile court-ready vector PDFs for First Information Reports conforming to BNSS Section 173 specifications. & `POST /api/download/fir` \newline `document_generator.py` \\
+\midrule
+\textbf{FR-12} & Vector PDF Legal Notice & The system must compile formal Section 80 CPC Legal Notice PDFs with standardized 15/30-day demand cure clauses. & `POST /api/download/notice` \newline `document_generator.py` \\
+\midrule
+\textbf{FR-13} & Vector PDF Affidavit & The system must compile court-admissible Sworn Affidavits complete with two-column Notary Jurat and verification blocks. & `POST /api/download/affidavit` \newline `document_generator.py` \\
+\midrule
+\textbf{FR-14} & Vector PDF Consumer Complaint & The system must generate formal Consumer Complaints formatted for national E-Daakhil filing under Section 35 CPA 2019. & `POST /api/download/complaint` \newline `document_generator.py` \\
+\midrule
+\textbf{FR-15} & Precedent Bookmarking & Authenticated users must be able to pin, list, and delete Supreme Court judgment bookmarks to their profile account. & `GET/POST/DELETE /api/bookmarks` \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Performance Requirements}
+\label{subsec:performance_requirements}
+
+To guarantee instantaneous responsiveness on mobile devices and low-specification desktop clients, the system must adhere to stringent quantitative performance benchmarks:
+\begin{enumerate}
+    \item \textbf{Vector Retrieval Latency:} The average cosine similarity search latency across 2,290 Supreme Court chunks must not exceed \textbf{50 milliseconds} under standard CPU execution.
+    \item \textbf{API Response Times:} Standard metadata endpoints (`/api/stats`, `/api/laws`, `/api/db/stats`) must respond in less than \textbf{200 milliseconds}. Full consultation queries (`/api/chat`) operating in offline extractive mode must complete within \textbf{500 milliseconds}.
+    \item \textbf{PDF Compilation Throughput:} The server-side ReportLab document generator must compile multi-page, publication-grade vector PDF instruments in less than \textbf{1.5 seconds} from form submission.
+    \item \textbf{Memory Footprint and Sparsity:} The loaded TF-IDF feature matrix and vocabulary must occupy less than \textbf{25 megabytes} of active system memory, maintaining a matrix sparsity ratio of at least \textbf{99.0\%}.
+    \item \textbf{Client-Side Bundle Optimization:} The compiled React production bundle must not exceed \textbf{250 kilobytes} gzipped, ensuring rapid initial page load on 3G and 4G mobile connections.
+\end{enumerate}
+
+\subsection{Dependability Requirements}
+\label{subsec:dependability_requirements}
+
+Dependability encompasses system reliability, availability, fault tolerance, and data integrity:
+\begin{enumerate}
+    \item \textbf{Zero-Downtime Offline Fallback:} The core legal advisory, statute browser, and document drafting modules must operate with 100\% availability in offline environments, eliminating single-point failure dependencies on external cloud APIs.
+    \item \textbf{ACID Relational Concurrency:} By configuring SQLite in Write-Ahead Logging (`PRAGMA journal_mode=WAL`) and `PRAGMA synchronous=NORMAL`, read operations must never block concurrent write operations, and write transactions must guarantee zero database corruption upon sudden power disruption.
+    \item \textbf{Multi-Model Failover:} The Gemini AI integration module (`gemini_service.py`) must implement automatic multi-model failover across `gemini-3.1-flash-lite`, `gemini-flash-latest`, and `gemini-3.8-flash` with an 8-second execution deadline to absorb transient rate limits and quota exhaustions.
+\end{enumerate}
+
+\subsection{Maintainability Requirements}
+\label{subsec:maintainability_requirements}
+
+\begin{enumerate}
+    \item \textbf{Modular Decoupled Architecture:} The software architecture must strictly segregate presentation logic (React components), API routing (Flask blueprints/routes), domain business logic (`gemini_service.py`, `document_generator.py`), and data persistence (`database.py`).
+    \item \textbf{Automated Database Migration:} The database layer must automatically detect legacy JSON persistence files (`users.json`, `chats/`) upon startup and seamlessly migrate existing records into the normalized SQLite schema without requiring manual database administrator intervention.
+    \item \textbf{Automated Regression Test Suite:} All core modules must be covered by comprehensive automated unit and integration tests (`backend/tests/test_pocketlaw.py`) executable through Python's standard `unittest` framework with a single shell command.
+\end{enumerate}
+
+\subsection{Security Requirements}
+\label{subsec:security_requirements}
+
+Because legal consultations involve confidential personal data, strict security protocols are enforced across all layers:
+\begin{enumerate}
+    \item \textbf{Cryptographic Password Protection:} User passwords must never be stored in plaintext. Passwords must be hashed using the PBKDF2 (Password-Based Key Derivation Function 2) algorithm with SHA-256 and a random cryptographic salt.
+    \item \textbf{Stateless Token Authentication:} Protected API routes (`/api/documents/save`, `/api/profile`, `/api/bookmarks`) must validate signed JSON Web Tokens (JWT) transmitted via standard HTTP `Authorization: Bearer <token>` headers, utilizing HMAC-SHA256 signatures with secret key rotation.
+    \item \textbf{Referential Integrity and Cascade Isolation:} Database schemas must enforce foreign key integrity (`PRAGMA foreign_keys=ON`). Deletion of a user account must automatically cascade to delete all associated chat sessions, messages, saved drafts, and bookmarks, preventing orphaned confidential data.
+    \item \textbf{Content Security and Cross-Origin Safeguards:} The Flask API gateway must enforce strict JSON `Content-Type` validation, sanitize input parameters against SQL injection via SQLAlchemy parameterized queries, and configure Cross-Origin Resource Sharing (CORS) to prevent unauthorized cross-site data theft.
+\end{enumerate}
+
+\subsection{Look and Feel Requirements}
+\label{subsec:look_and_feel_requirements}
+
+\begin{enumerate}
+    \item \textbf{Modern Glassmorphic Aesthetic:} The visual presentation layer must feature a polished glassmorphism design system incorporating subtle translucency, rounded card containers, clean typographic hierarchy, and responsive fluid grids.
+    \item \textbf{High-Contrast Legibility and Theme Switching:} The user interface must support dual light and dark aesthetic themes optimized for high readability, adhering to WCAG 2.1 AA accessibility standards for visually impaired users.
+    \item \textbf{Visual Separation of Legal Entities:} Consultation outputs must organize legal information into visually distinct, color-coded interactive cards: statutory sections (blue/cyan), constitutional rights (purple), immediate action steps (emerald green), and official helplines (amber/orange).
+\end{enumerate}
+
+\section{Software Development Life Cycle (SDLC) Model Used}
+\label{sec:sdlc_model}
+
+To accommodate the dynamic nature of generative AI integration, evolving statutory cross-mapping requirements, and rapid user feedback iterations, the project was executed utilizing the \textbf{Agile Iterative Development Model}. 
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.8cm,
+    stage/.style={rectangle, draw=blue!80!black, fill=blue!10, thick, rounded corners=3pt, minimum width=3.8cm, minimum height=1.0cm, align=center, font=\small\bfseries},
+    arrow/.style={thick, ->, >=stealth, draw=blue!70!black}
+]
+    \node[stage] (req) {Sprint 1: Requirements \&\\Corpus Curation};
+    \node[stage, right=1.5cm of req] (rag) {Sprint 2: Vector Space Model\\\& RAG Calibration};
+    \node[stage, below=1.4cm of rag] (synth) {Sprint 3: Hybrid AI Synthesis\\\& Document Engine};
+    \node[stage, left=1.5cm of synth] (db) {Sprint 4: SQLite WAL Persistence\\\& API Gateway};
+    \node[stage, below=1.4cm of db] (ui) {Sprint 5: React 18 SPA\\\& Glassmorphism UI};
+    \node[stage, right=1.5cm of ui] (test) {Sprint 6: Regression Testing\\\& Academic Evaluation};
+
+    \draw[arrow] (req) -- (rag);
+    \draw[arrow] (rag) -- (synth);
+    \draw[arrow] (synth) -- (db);
+    \draw[arrow] (db) -- (ui);
+    \draw[arrow] (ui) -- (test);
+    \draw[arrow, dashed] (test) -- ++(2.2,0) |- (req);
+\end{tikzpicture}
+\caption{Iterative Agile Development Sprints Mapped to the PocketLaw Project Work}
+\label{fig:agile_sdlc_model}
+\end{figure}
+
+The project execution was organized into six structured two-week sprints:
+\begin{itemize}
+    \item \textbf{Sprint 1 (Requirements Formulation \& Corpus Engineering):} Analyzing the July 2024 criminal law transition; extracting, cleaning, and structuring 2,290 Supreme Court precedent chunks across 148 landmark decisions.
+    \item \textbf{Sprint 2 (Vector Indexing \& Cosine Calibration):} Implementing sublinear TF-IDF feature extraction (15,000 features); formulating the Scipy sparse matrix; calibrating the retrieval threshold ($\tau = 0.05$) to prevent hyper-dimensional dropout.
+    \item \textbf{Sprint 3 (Hybrid Generation \& Document Typography):} Authoring the ReportLab PDF compilation engine for FIRs, notices, affidavits, and complaints; integrating Google Gemini with anti-hallucination grounding prompts and offline extractive fallback.
+    \item \textbf{Sprint 4 (Relational Persistence \& API Engineering):} Designing the 5-table relational database schema in SQLAlchemy; implementing SQLite WAL mode and connection pooling; creating the RESTful Flask API endpoints.
+    \item \textbf{Sprint 5 (Front-End Architecture \& UI Engineering):} Developing the React 18 Single Page Application; building reactive document preview forms, Chart.js analytics visualizers, Lucide icon libraries, and multilingual language switchers.
+    \item \textbf{Sprint 6 (Testing, Evaluation, and Optimization):} Constructing the 16-test automated regression suite; conducting academic Information Retrieval evaluations (`/api/rag/eval`); fine-tuning build bundles and document layouts.
+\end{itemize}

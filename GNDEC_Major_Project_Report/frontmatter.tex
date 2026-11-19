@@ -1,0 +1,282 @@
+% ==============================================================================
+% Front Matter for GNDEC Major Project Report
+% Department of Computer Science and Engineering
+% Guru Nanak Dev Engineering College, Ludhiana
+% ==============================================================================
+
+% ── Outer Cover Page (Sample Sheet Format) ────────────────────────────────────
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+    \singlespacing
+    \vspace*{0.2cm}
+    
+    {\fontsize{22}{26}\selectfont \textbf{POCKETLAW: AN AI-POWERED LEGAL INTELLIGENCE AND AUTOMATED COURT-READY DOCUMENT SYSTEM UTILISING OFFLINE RETRIEVAL-AUGMENTED GENERATION AND MODERN INDIAN CRIMINAL JURISPRUDENCE}\par}
+    
+    \vspace{1.5cm}
+    
+    {\fontsize{14}{18}\selectfont \textbf{MAJOR PROJECT REPORT}\par}
+    
+    \vspace{0.8cm}
+    
+    {\fontsize{12}{16}\selectfont SUBMITTED IN PARTIAL FULFILMENT OF THE REQUIREMENTS FOR THE AWARD OF THE DEGREE OF\par}
+    
+    \vspace{0.8cm}
+    
+    {\fontsize{14}{18}\selectfont \textbf{BACHELOR OF TECHNOLOGY}\par}
+    {\fontsize{14}{18}\selectfont \textbf{(Computer Science and Engineering)}\par}
+    
+    \vspace{1.2cm}
+    
+    % Official GNDEC Emblem / Graphic
+    \begin{tikzpicture}[scale=0.85]
+        \draw[line width=1.5pt, color=red!70!black] (0,0) circle (2.2cm);
+        \draw[line width=0.8pt, color=blue!70!black] (0,0) circle (2.05cm);
+        \draw[line width=1.2pt, color=red!70!black] (0,0) circle (1.4cm);
+        % Inner bridge symbol representation
+        \draw[line width=1.5pt, color=blue!80!black] (-1.2,-0.2) -- (1.2,-0.2);
+        \draw[line width=1.0pt, color=blue!80!black] (-1.0,-0.2) -- (-0.8,0.7) -- (-0.6,-0.2) -- (-0.4,0.7) -- (-0.2,-0.2) -- (0,0.7) -- (0.2,-0.2) -- (0.4,0.7) -- (0.6,-0.2) -- (0.8,0.7) -- (1.0,-0.2);
+        \node at (0,1.0) {\small \textbf{1956}};
+        % College text banner
+        \path [postaction={decorate,decoration={text along path, text={|\fontsize{7}{8}\selectfont\bfseries|GURU NANAK DEV ENGG. COLLEGE LUDHIANA},text align=center}}]
+            (-1.8,0.2) arc (160:20:1.9cm);
+        \node at (0,-1.65) {\fontsize{6.5}{7.5}\selectfont \textbf{WORK IS WORSHIP}};
+    \end{tikzpicture}
+    
+    \vspace{1.2cm}
+    
+    \begin{table}[H]
+        \centering
+        \singlespacing
+        \begin{tabular}{p{7.2cm}p{7.2cm}}
+            {\fontsize{14}{18}\selectfont \textbf{Submitted By:}} & {\fontsize{14}{18}\selectfont \textbf{Submitted To:}} \\[0.3cm]
+            {\fontsize{14}{18}\selectfont Mohd Shehzad (Univ. Roll No: 2203929)} & {\fontsize{14}{18}\selectfont Prof. [Project Guide Name]} \\
+            {\fontsize{14}{18}\selectfont [Co-Author Name (Univ. Roll No)]} & {\fontsize{14}{18}\selectfont Assistant Professor, Dept. of CSE} \\
+        \end{tabular}
+    \end{table}
+    
+    \vfill
+    
+    {\fontsize{14}{18}\selectfont \textbf{DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING}\par}
+    {\fontsize{14}{18}\selectfont \textbf{GURU NANAK DEV ENGINEERING COLLEGE}\par}
+    {\fontsize{14}{18}\selectfont \textbf{LUDHIANA, 141006}\par}
+    \vspace{0.3cm}
+    {\fontsize{12}{14}\selectfont \textbf{November, 2026}\par}
+\end{center}
+\end{titlepage}
+
+% ── Inner Title Page (Sample Sheet Format) ────────────────────────────────────
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+    \singlespacing
+    \vspace*{0.2cm}
+    
+    {\fontsize{22}{26}\selectfont \textbf{POCKETLAW: AN AI-POWERED LEGAL INTELLIGENCE AND AUTOMATED COURT-READY DOCUMENT SYSTEM UTILISING OFFLINE RETRIEVAL-AUGMENTED GENERATION AND MODERN INDIAN CRIMINAL JURISPRUDENCE}\par}
+    
+    \vspace{1.5cm}
+    
+    {\fontsize{14}{18}\selectfont \textbf{MAJOR PROJECT REPORT}\par}
+    
+    \vspace{0.8cm}
+    
+    {\fontsize{12}{16}\selectfont SUBMITTED IN PARTIAL FULFILMENT OF THE REQUIREMENTS FOR THE AWARD OF THE DEGREE OF\par}
+    
+    \vspace{0.8cm}
+    
+    {\fontsize{14}{18}\selectfont \textbf{BACHELOR OF TECHNOLOGY}\par}
+    {\fontsize{14}{18}\selectfont \textbf{(Computer Science and Engineering)}\par}
+    
+    \vspace{1.2cm}
+    
+    \begin{tikzpicture}[scale=0.85]
+        \draw[line width=1.5pt, color=red!70!black] (0,0) circle (2.2cm);
+        \draw[line width=0.8pt, color=blue!70!black] (0,0) circle (2.05cm);
+        \draw[line width=1.2pt, color=red!70!black] (0,0) circle (1.4cm);
+        \draw[line width=1.5pt, color=blue!80!black] (-1.2,-0.2) -- (1.2,-0.2);
+        \draw[line width=1.0pt, color=blue!80!black] (-1.0,-0.2) -- (-0.8,0.7) -- (-0.6,-0.2) -- (-0.4,0.7) -- (-0.2,-0.2) -- (0,0.7) -- (0.2,-0.2) -- (0.4,0.7) -- (0.6,-0.2) -- (0.8,0.7) -- (1.0,-0.2);
+        \node at (0,1.0) {\small \textbf{1956}};
+        \node at (0,-1.65) {\fontsize{6.5}{7.5}\selectfont \textbf{WORK IS WORSHIP}};
+    \end{tikzpicture}
+    
+    \vspace{1.2cm}
+    
+    \begin{table}[H]
+        \centering
+        \singlespacing
+        \begin{tabular}{p{7.2cm}p{7.2cm}}
+            {\fontsize{14}{18}\selectfont \textbf{Submitted By:}} & {\fontsize{14}{18}\selectfont \textbf{Submitted To:}} \\[0.3cm]
+            {\fontsize{14}{18}\selectfont Mohd Shehzad (Univ. Roll No: 2203929)} & {\fontsize{14}{18}\selectfont Prof. [Project Guide Name]} \\
+            {\fontsize{14}{18}\selectfont [Co-Author Name (Univ. Roll No)]} & {\fontsize{14}{18}\selectfont Assistant Professor, Dept. of CSE} \\
+        \end{tabular}
+    \end{table}
+    
+    \vfill
+    
+    {\fontsize{14}{18}\selectfont \textbf{DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING}\par}
+    {\fontsize{14}{18}\selectfont \textbf{GURU NANAK DEV ENGINEERING COLLEGE}\par}
+    {\fontsize{14}{18}\selectfont \textbf{LUDHIANA, 141006}\par}
+    \vspace{0.3cm}
+    {\fontsize{12}{14}\selectfont \textbf{November, 2026}\par}
+\end{center}
+\end{titlepage}
+
+% ── Roman Numerals for Front Matter ───────────────────────────────────────────
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+% ── Certificate Page ──────────────────────────────────────────────────────────
+\chapter*{Candidate's Declaration and Certificate}
+\addcontentsline{toc}{chapter}{Candidate's Declaration and Certificate}
+
+\doublespacing
+I/We hereby certify that the work which is being presented in the Major Project Report entitled \textbf{``PocketLaw: An AI-Powered Legal Intelligence and Automated Court-Ready Document System Utilising Offline Retrieval-Augmented Generation and Modern Indian Criminal Jurisprudence''} in partial fulfilment of the requirements for the award of the Degree of \textbf{Bachelor of Technology in Computer Science and Engineering} submitted in the Department of Computer Science and Engineering at \textbf{Guru Nanak Dev Engineering College, Ludhiana} is an authentic record of our own work carried out during the period from July 2026 to November 2026 under the supervision of \textbf{Prof. [Project Guide Name]}, Department of Computer Science and Engineering.
+
+The matter presented in this report has not been submitted by us for the award of any other degree or diploma of this or any other Institute/University.
+
+\vspace{1.5cm}
+
+\singlespacing
+\noindent
+\begin{tabular}{p{7.5cm}p{7.0cm}}
+Date: 25-11-2026 & \textbf{Mohd Shehzad} (Univ. Roll No: 2203929) \\
+Place: Ludhiana & \textbf{[Co-Author Name]} (Univ. Roll No: [Roll No]) \\
+\end{tabular}
+
+\vspace{1.2cm}
+\doublespacing
+\noindent
+This is to certify that the above statement made by the candidate(s) is correct to the best of my knowledge and belief.
+
+\vspace{1.8cm}
+\singlespacing
+\noindent
+\begin{tabular}{p{7.5cm}p{7.0cm}}
+\textbf{Prof. [Project Guide Name]} & \textbf{Dr. [HOD Name]} \\
+Project Guide, Department of CSE & Head of Department, Department of CSE \\
+Guru Nanak Dev Engineering College & Guru Nanak Dev Engineering College \\
+Ludhiana, Punjab & Ludhiana, Punjab \\
+\end{tabular}
+
+\vspace{1.5cm}
+\noindent
+\begin{center}
+\textbf{External Examiner} \\
+(Signature with Date)
+\end{center}
+
+\newpage
+
+% ── Abstract (Strictly under 1500 words as per GNDEC guidelines) ──────────────
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\doublespacing
+
+Access to timely, accurate, and affordable legal counsel remains one of the most formidable socioeconomic challenges across the Republic of India. With over 50 million cases pending across subordinate, High Court, and Supreme Court dockets, ordinary citizens facing everyday legal distress---ranging from cyber fraud, consumer exploitation, arbitrary tenancy eviction, and domestic disputes---are severely constrained by economic hurdles, systemic procedural obscurity, and multilingual communication barriers. Compounding this systemic crisis, on 1 July 2024, the Indian legal architecture underwent its most monumental structural overhaul since independence: the colonial-era Indian Penal Code 1860, Code of Criminal Procedure 1973, and Indian Evidence Act 1872 were completely replaced by the modernized \textbf{Bharatiya Nyaya Sanhita (BNS) 2023}, \textbf{Bharatiya Nagarik Suraksha Sanhita (BNSS) 2023}, and \textbf{Bharatiya Sakshya Adhiniyam (BSA) 2023}. Contemporary commercial large language model (LLM) platforms routinely fail Indian citizens by either hallucinating repealed colonial statutes, hallucinating fictitious precedents, leaking confidential legal disputes over public cloud APIs, or requiring expensive recurring subscription fees that remain out of reach for marginalized litigants.
+
+To address these acute societal and technological challenges, this Major Project work presents \textbf{PocketLaw}, an end-to-end, privacy-preserving, and academically verified Legal Intelligence and Court-Ready Document Drafting Platform. PocketLaw unites offline Information Retrieval (IR) through Retrieval-Augmented Generation (RAG), statutory cross-mapping, hybrid artificial intelligence synthesis, and server-side vector PDF document compilation into an accessible, responsive web application.
+
+The core retrieval engine is architected around a 15,000-dimensional sparse Vector Space Model (VSM) operating over a curated knowledge base of 2,290 verified text chunks extracted across 148 landmark Supreme Court of India judgments. In contrast to computationally expensive deep dense embedding models requiring continuous internet connectivity and proprietary vector databases, PocketLaw formulates a mathematically rigorous sublinear Term Frequency-Inverse Document Frequency (TF-IDF) feature matrix represented via Compressed Sparse Row (CSR) matrices with a calibrated cosine similarity kernel ($\tau = 0.05$). This offline architectural paradigm achieves a 99.08\% matrix sparsity, ensuring ultra-low memory utilization while delivering an instantaneous average query latency of 41.6 milliseconds on standard commodity personal computer hardware. Empirical evaluation conducted via an automated 10-query academic benchmark demonstrates exceptional information retrieval accuracy, recording a Mean Precision@3 of 90.0\%, a Mean Precision@5 of 84.0\%, and a Mean Reciprocal Rank (MRR) of 0.92.
+
+At the generative application layer, PocketLaw implements a resilient hybrid synthesis pipeline. When internet access and Google Gemini credentials are provisioned, the system generates grounded executive legal summaries constrained by strict prompt boundary guardrails that prohibit external legal fabrication. Conversely, in disconnected environments, PocketLaw seamlessly falls back to 100\% offline extractive summarization paired with a comprehensive, verified Indian legal ontology covering modern BNS/BNSS/BSA enactments, fundamental constitutional safeguards, emergency helpline directories, and step-by-step procedural playbooks across English, Hindi, Punjabi, and Urdu.
+
+Complementing its consultative intelligence, PocketLaw incorporates a court-ready document generation engine capable of compiling formal First Information Reports (FIRs) under Section 173 BNSS (incorporating Zero FIR mandates), Section 80 CPC Formal Legal Notices, Notarized Sworn Affidavits, and Section 35 Consumer Complaints formatted for national E-Daakhil filing. The engine features dual-tier drafting: client-side reactive keystroke preview and server-side vector PDF compilation utilizing ReportLab flowables, official judicial headers, jurisdictional clauses, structured party tables, and formal two-column Notary Jurat attestations.
+
+The persistence tier is governed by a fully normalized five-table relational SQLite 3 database managed through SQLAlchemy ORM, configured with Write-Ahead Logging (`PRAGMA journal_mode=WAL`), connection pooling, and cascade foreign key constraints, guaranteeing strict ACID compliance and robust read-write concurrency without external database server overhead. The front-end interface is engineered as a modern Single Page Application (SPA) leveraging React 18, React Router v6, Axios interceptors, Lucide vector icons, and Chart.js analytical visualizations.
+
+The entire system has been validated through an automated regression and integration test suite comprising 16 unit tests across database transactions, PDF binary synthesis, statutory existence, and cosine ranking metrics, attaining a 100\% pass rate. PocketLaw demonstrates that mathematically sound, localized algorithmic design can democratize legal empowerment, eliminate statutory hallucination, and bridge the digital justice divide in modern India.
+
+\newpage
+
+% ── Acknowledgement (Sample Sheet Format) ─────────────────────────────────────
+\chapter*{Acknowledgement}
+\addcontentsline{toc}{chapter}{Acknowledgement}
+\doublespacing
+
+We are highly grateful to \textbf{Dr. [Principal Name]}, Principal, Guru Nanak Dev Engineering College (GNDEC), Ludhiana, for providing this opportunity to carry out the major project work at Guru Nanak Dev Engineering College, Ludhiana.
+
+The constant guidance and encouragement received from \textbf{Dr. [HOD Name]}, Head of Department, Computer Science and Engineering Department, GNDEC Ludhiana, has been of great help in carrying out the project work and is acknowledged with reverential thanks.
+
+We would like to express a deep sense of gratitude and thanks profusely to our project guide, \textbf{Prof. [Project Guide Name]}, Assistant Professor, Department of Computer Science and Engineering, without his/her wise counsel and able guidance, it would have been impossible to complete the project in this manner. His/her constructive criticism, continuous technical reviews, and academic insights have enriched this project report substantially.
+
+We express gratitude to other faculty members and technical staff of the Computer Science and Engineering Department of GNDEC for their intellectual support throughout the course of this work.
+
+Finally, we are indebted to our parents, family members, and all friends whosoever have contributed directly or indirectly in this report work.
+
+\vspace{1.8cm}
+\singlespacing
+\noindent
+\begin{tabular}{p{7.5cm}p{7.0cm}}
+\textbf{Mohd Shehzad} & \textbf{[Co-Author Name]} \\
+Univ. Roll No: 2203929 & Univ. Roll No: [Roll No] \\
+Batch: 2023-2027 & Batch: 2023-2027 \\
+Department of CSE, GNDEC Ludhiana & Department of CSE, GNDEC Ludhiana \\
+\end{tabular}
+
+\newpage
+
+% ── Auto-generated Lists ──────────────────────────────────────────────────────
+\singlespacing
+\tableofcontents
+\newpage
+
+\listoffigures
+\newpage
+
+\listoftables
+\newpage
+
+% ── Nomenclature and Notations ────────────────────────────────────────────────
+\chapter*{Notations and Nomenclature}
+\addcontentsline{toc}{chapter}{Notations and Nomenclature}
+\doublespacing
+
+\begin{table}[H]
+\caption{Mathematical Notations, Acronyms, and Statutory Abbreviations}
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Notation / Acronym} & \textbf{Description / Meaning} \\
+\midrule
+$D$ & Total legal corpus consisting of indexed document chunks ($|D| = 2,290$) \\
+$V$ & Vocabulary space size of extracted n-gram features ($V = 15,000$) \\
+$TF(t, d)$ & Sublinear Term Frequency of token $t$ in document chunk $d$ \\
+$IDF(t)$ & Smooth Inverse Document Frequency of token $t$ across corpus $D$ \\
+$\mathbf{q}, \mathbf{d}$ & Normalized 15,000-dimensional sparse vectors for query $q$ and chunk $d$ \\
+$\tau$ & Calibrated Cosine Similarity Retrieval Threshold ($\tau = 0.05$) \\
+$P@K$ & Precision at Rank $K$ (proportion of relevant chunks within top-$K$ candidates) \\
+$MRR$ & Mean Reciprocal Rank across evaluated benchmark queries \\
+\midrule
+ACID & Atomicity, Consistency, Isolation, Durability \\
+API & Application Programming Interface \\
+BNS 2023 & Bharatiya Nyaya Sanhita, 2023 (Successor to IPC 1860) \\
+BNSS 2023 & Bharatiya Nagarik Suraksha Sanhita, 2023 (Successor to CrPC 1973) \\
+BSA 2023 & Bharatiya Sakshya Adhiniyam, 2023 (Successor to IEA 1872) \\
+CDRC & Consumer Disputes Redressal Commission \\
+CPC 1908 & Code of Civil Procedure, 1908 (Section 80 Statutory Notice) \\
+CSR & Compressed Sparse Row (Scipy Matrix Storage Format) \\
+DFD & Data Flow Diagram \\
+E-Daakhil & Government of India Online Consumer Grievance Filing Portal \\
+FIR & First Information Report (Section 154 CrPC / Section 173 BNSS) \\
+GNDEC & Guru Nanak Dev Engineering College, Ludhiana \\
+IPC 1860 & Indian Penal Code, 1860 (Repealed 1 July 2024) \\
+IR & Information Retrieval \\
+JSON & JavaScript Object Notation \\
+JWT & JSON Web Token (RFC 7519) \\
+LLM & Large Language Model \\
+ORM & Object-Relational Mapping (SQLAlchemy) \\
+RAG & Retrieval-Augmented Generation \\
+REST & Representational State Transfer \\
+SPA & Single Page Application \\
+SRS & Software Requirement Specification \\
+TF-IDF & Term Frequency - Inverse Document Frequency \\
+UML & Unified Modelling Language \\
+URI / URL & Uniform Resource Identifier / Locator \\
+VSM & Vector Space Model \\
+WAL & Write-Ahead Logging (SQLite Concurrency Mechanism) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage
+\doublespacing
