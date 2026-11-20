@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { chatAPI, saveChatAPI, dlConsultation } from "../services/api";
+import { chatAPI, saveChatAPI, dlConsultation, isLocalhost, getBaseUrl } from "../services/api";
 import { translate } from "../i18n";
 
 const QUICK = [
@@ -282,6 +282,7 @@ export default function HomePage({ lang = "en" }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [showQ, setShowQ] = useState(true);
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState("both");
@@ -292,6 +293,19 @@ export default function HomePage({ lang = "en" }) {
   const [searchParams] = useSearchParams();
   const qHandledRef = useRef(null);
   const tUI = (text) => translate(lang, text);
+
+  // Monitor loading duration to inform user if cloud server is waking up
+  useEffect(() => {
+    let timer;
+    if (loading) {
+      setLoadingSeconds(0);
+      timer = setInterval(() => setLoadingSeconds((s) => s + 1), 1000);
+    } else {
+      setLoadingSeconds(0);
+    }
+    return () => clearInterval(timer);
+  }, [loading]);
+
   const startNewChat = () => {
     chatGenerationRef.current += 1;
     if (recRef.current) {
@@ -343,7 +357,16 @@ export default function HomePage({ lang = "en" }) {
       if (localStorage.getItem("jl_token")) { try { await saveChatAPI(msg, data, mode); } catch {} }
     } catch {
       if (generation === chatGenerationRef.current) {
-        setMsgs(m => [...m, { id: Date.now() + 1, type: "ai", text: t("offline") }]);
+        setMsgs(m => [
+          ...m,
+          {
+            id: Date.now() + 1,
+            type: "ai",
+            isError: true,
+            retryQuery: msg,
+            isLocal: isLocalhost()
+          }
+        ]);
       }
     } finally {
       if (generation === chatGenerationRef.current) setLoading(false);
@@ -430,11 +453,63 @@ export default function HomePage({ lang = "en" }) {
               <div key={msg.id} className={`msg ${msg.type}`}>
                 <div className="msg-av">{msg.type === "user" ? <i className="fas fa-user" /> : <i className="fas fa-scale-balanced" />}</div>
                 <div className={`bubble${msg.data ? " wide" : ""}`}>
-                  {msg.text && <p style={{ whiteSpace: "pre-line" }}>{msg.text}</p>}
-                  {msg.data && (
+                  {msg.isError ? (
+                    <div className="res" style={{ margin: 0, padding: "14px 16px", borderColor: "rgba(239, 68, 68, 0.35)", background: "rgba(239, 68, 68, 0.05)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--err)", fontWeight: 600, fontSize: 15, marginBottom: 8 }}>
+                        <i className="fas fa-circle-exclamation" style={{ fontSize: 18 }} />
+                        <span>{msg.isLocal ? tUI("Can't reach local PocketLaw backend") : tUI("PocketLaw Cloud Engine is Waking Up")}</span>
+                      </div>
+                      {msg.isLocal ? (
+                        <div style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.6 }}>
+                          <p style={{ margin: "0 0 6px 0" }}>Start your local Python backend in a terminal:</p>
+                          <pre style={{ background: "rgba(0,0,0,0.3)", padding: "10px 12px", borderRadius: 8, color: "var(--gold)", fontFamily: "monospace", margin: "6px 0", fontSize: 13 }}>cd backend{'\n'}python app.py</pre>
+                          <button
+                            type="button"
+                            className="btn btn-g btn-sm"
+                            onClick={() => send(msg.retryQuery)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8 }}
+                          >
+                            <i className="fas fa-rotate-right" /> {tUI("Retry Query")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.6 }}>
+                          <p style={{ margin: "0 0 8px 0" }}>
+                            {tUI("Cloud services on free tiers (Render/Koyeb) sleep after 15 minutes of inactivity. When a request arrives, spinning up Python and loading the 2,290 judgment database takes 30–50 seconds.")}
+                          </p>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                            <button
+                              type="button"
+                              className="btn btn-g btn-sm"
+                              onClick={() => send(msg.retryQuery)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                              <i className="fas fa-rotate-right" /> {tUI("Retry Question")}
+                            </button>
+                            {getBaseUrl() && (
+                              <a
+                                href={`${getBaseUrl()}/api/health`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-o btn-sm"
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+                              >
+                                <i className="fas fa-heart-pulse" /> {tUI("Server Health")}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                     <>
-                      <p>{t("analysisComplete")} <b>"{msg.query}"</b></p>
-                      <AnalysisCard data={msg.data} query={msg.query} lang={lang} />
+                      {msg.text && <p style={{ whiteSpace: "pre-line" }}>{msg.text}</p>}
+                      {msg.data && (
+                        <>
+                          <p>{t("analysisComplete")} <b>"{msg.query}"</b></p>
+                          <AnalysisCard data={msg.data} query={msg.query} lang={lang} />
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -445,7 +520,11 @@ export default function HomePage({ lang = "en" }) {
                 <div className="msg-av"><i className="fas fa-scale-balanced" /></div>
                 <div className="bubble" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div className="ldr"><span /><span /><span /></div>
-                  <span style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("searching")}</span>
+                  <span style={{ fontSize: 13.5, color: loadingSeconds > 6 ? "var(--gold)" : "var(--muted)" }}>
+                    {loadingSeconds > 6
+                      ? tUI("⏳ Connecting to legal AI engine… (Cloud server is waking up from sleep, please wait ~20–30s)")
+                      : t("searching")}
+                  </span>
                 </div>
               </div>
             )}

@@ -14,6 +14,7 @@ import ChatHistoryPage from "./pages/ChatHistoryPage";
 import ProfilePage from "./pages/ProfilePage";
 import "./App.css";
 import { LanguageContext, translate } from "./i18n";
+import { pingServer } from "./services/api";
 
 // ── Auth Context ──
 export const AuthContext = createContext();
@@ -203,6 +204,8 @@ export default function App() {
   const toggleTheme = () => setTheme(t => (t === "dark" ? "light" : "dark"));
 
   useEffect(() => {
+    // Pre-warm backend on page load so sleeping cloud instances start booting immediately
+    pingServer();
     const stored = localStorage.getItem("jl_user");
     if (stored) {
       try { setUser(JSON.parse(stored)); } catch {}

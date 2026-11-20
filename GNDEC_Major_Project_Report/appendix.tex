@@ -1,0 +1,185 @@
+% ==============================================================================
+% Appendix and Annexures
+% GNDEC Department of Computer Science and Engineering
+% ==============================================================================
+
+\appendix
+
+\chapter{Development Environment and Setup Guide}
+\label{app:development_environment}
+
+\section{Hardware and Operating System Environment}
+The PocketLaw platform was implemented, profiled, and verified within the academic computational environment of the Department of Computer Science and Engineering, Guru Nanak Dev Engineering College, Ludhiana. The physical hardware specifications and operating system configurations are documented in Table~\ref{tab:hardware_environment}.
+
+\begin{table}[H]
+\caption{Development Hardware and Operating System Specifications}
+\label{tab:hardware_environment}
+\centering
+\small
+\begin{tabularx}{\textwidth}{p{4.5cm}X}
+\toprule
+\textbf{Hardware Component / Parameter} & \textbf{Specification / Value} \\
+\midrule
+Host Processor (CPU) & Intel Core i7 / AMD Ryzen 7 (8 Cores, 16 Threads @ 3.8 GHz) \\
+System Memory (RAM) & 16.0 GB DDR4 @ 3200 MHz \\
+Secondary Storage & 512 GB PCIe NVMe M.2 Solid State Drive \\
+Display Subsystem & 15.6-inch Full HD (1920 $\times$ 1080) IPS Panel \\
+Host Operating System & Microsoft Windows 11 Pro (64-bit) / Linux Ubuntu 22.04 LTS \\
+Command Line Environment & PowerShell 7.4 / Windows Terminal / Bash \\
+Node.js Runtime & Node.js v18.17.0 LTS / npm 9.6.7 \\
+Python Interpreter & Python 3.14.0 (Tested on 3.10, 3.12, 3.14) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Local Deployment and Installation Guide}
+To reproduce the execution environment and launch PocketLaw locally, execute the sequential procedures documented below:
+
+\subsection{Step 1: Clone Repository and Inspect Structure}
+\begin{lstlisting}[language=bash,caption={Cloning and Navigating the PocketLaw Repository}]
+# Clone the repository
+git clone https://github.com/shehzad/PocketLaw.git
+cd PocketLaw
+\end{lstlisting}
+
+\subsection{Step 2: Back-End Initialization and Environment Setup}
+\begin{lstlisting}[language=bash,caption={Back-End Virtual Environment and Dependency Setup}]
+cd backend
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux / macOS:
+source venv/bin/activate
+
+# Install required Python dependencies
+pip install -r requirements.txt
+
+# Run the automated regression test suite (16 tests)
+python -m unittest tests/test_pocketlaw.py -v
+
+# Start the Flask API Gateway on port 5001
+python app.py
+\end{lstlisting}
+
+\subsection{Step 3: Front-End Compilation and Server Launch}
+\begin{lstlisting}[language=bash,caption={Front-End Client Dependency Setup and Launch}]
+cd ../frontend
+
+# Install React dependencies
+npm install
+
+# Launch React development server on port 3000
+npm start
+\end{lstlisting}
+
+\newpage
+
+\chapter*{Annexure I: RESTful API Endpoint Specification}
+\addcontentsline{toc}{chapter}{Annexure I: RESTful API Endpoint Specification}
+
+Table~\ref{tab:annexure_api_spec} provides the complete technical specification of the RESTful API endpoints exposed by the PocketLaw Flask Gateway.
+
+\begin{table}[H]
+\caption{Comprehensive RESTful API Endpoint Specification}
+\label{tab:annexure_api_spec}
+\centering
+\small
+\begin{tabularx}{\textwidth}{lp{1.6cm}p{2.8cm}X}
+\toprule
+\textbf{Endpoint Route} & \textbf{Method} & \textbf{Authentication} & \textbf{Description \& Primary Payload} \\
+\midrule
+`/api/health` & `GET` & None & System diagnostic status, chunk count, and database health. \\
+`/api/auth/register` & `POST` & None & Registers new user account with PBKDF2 hash. Body: `email`, `password`, `name`. \\
+`/api/auth/login` & `POST` & None & Verifies credentials; issues JWT session token. \\
+`/api/auth/me` & `GET` & Bearer JWT & Validates token and returns current user identity. \\
+`/api/profile` & `GET/PUT`& Bearer JWT & Fetches or updates user display name, bio, and avatar. \\
+`/api/chat` & `POST` & Optional & Core consultation; receives grievance and returns hybrid synthesis. \\
+`/api/rag` & `GET` & None & Direct cosine similarity search across 2,290 chunks. Query: `?q=...` \\
+`/api/rag/eval` & `GET` & None & Runs 10-query academic benchmark (Precision@K, MRR, latency). \\
+`/api/laws` & `GET` & None & Statutory catalog including BNS 2023, BNSS, BSA, IT Act. \\
+`/api/stats` & `GET` & None & Knowledge base case distributions, success rates, and timelines. \\
+`/api/db/stats` & `GET` & None & SQLite WAL database diagnostic metrics and row counts. \\
+`/api/documents/preview` & `POST` & None & Renders real-time court-ready plain text for UI live preview. \\
+`/api/download/fir` & `POST` & None & Compiles court-admissible FIR vector PDF under BNSS Section 173. \\
+`/api/download/notice` & `POST` & None & Compiles Section 80 CPC Formal Legal Notice vector PDF. \\
+`/api/download/affidavit`& `POST` & None & Compiles Sworn Affidavit vector PDF with Notary Jurat. \\
+`/api/download/complaint`& `POST` & None & Compiles Consumer Complaint vector PDF for E-Daakhil filing. \\
+`/api/documents/save` & `POST` & Bearer JWT & Persists drafted instrument form payload and text to user account. \\
+`/api/documents` & `GET` & Bearer JWT & Lists all saved document drafts for the current user. \\
+`/api/bookmarks` & `GET/POST` & Bearer JWT & Lists or pins Supreme Court landmark judgment bookmarks. \\
+`/api/bookmarks/<id>` & `DELETE` & Bearer JWT & Removes pinned bookmark from user account. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\newpage
+
+\chapter*{Annexure II: Key Configuration and Pragmas}
+\addcontentsline{toc}{chapter}{Annexure II: Key Configuration and Pragmas}
+
+\section*{Environment Configuration Variables (`backend/.env`)}
+The execution runtime of PocketLaw is configured through environment variables:
+\begin{lstlisting}[language=bash,caption={Configuration Environment Schema}]
+# Optional Google Gemini API Key for Grounded Hybrid Synthesis
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Secret Key for JWT Token HMAC-SHA256 Signing
+JWT_SECRET=c8f8b89e9f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c
+
+# Application Port (Defaults to 5001)
+PORT=5001
+
+# React Client Configuration (frontend/.env)
+REACT_APP_API_URL=http://127.0.0.1:5001
+\end{lstlisting}
+
+\section*{SQLite High-Concurrency PRAGMA Directives}
+To ensure robust ACID transaction compliance, thread-safe connection pooling, and multi-process concurrency, SQLite is configured upon every connection:
+\begin{lstlisting}[language=python,caption={SQLite Connection PRAGMAs in `backend/database.py`}]
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    try:
+        # Write-Ahead Logging allows simultaneous readers and writers
+        cursor.execute("PRAGMA journal_mode=WAL")
+        # Normal synchronous mode balances performance and durability
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        # Enforce foreign key constraints across relational cascades
+        cursor.execute("PRAGMA foreign_keys=ON")
+    except Exception as e:
+        logger.warning(f"Could not set SQLite PRAGMA: {e}")
+    finally:
+        cursor.close()
+\end{lstlisting}
+
+\newpage
+
+\chapter*{Annexure III: User Manual and Operator Guide}
+\addcontentsline{toc}{chapter}{Annexure III: User Manual and Operator Guide}
+
+This Operator Guide outlines the step-by-step procedures for non-specialist citizens navigating the PocketLaw platform:
+
+\section*{Workflow 1: Seeking Instant Legal Intelligence}
+\begin{enumerate}
+    \item Open your web browser and navigate to \url{http://localhost:3000}.
+    \item On the home consultation page, type your factual grievance into the text area in plain English, Hindi, Punjabi, or Urdu (or click the microphone icon to dictate).
+    \item Select your consultation mode: \textit{``RAG + AI Synthesis''} (combines Supreme Court precedent matching with generative analysis) or \textit{``Local RAG Only''} (100\% offline extractive mode).
+    \item Click \textbf{``Analyze My Legal Rights''}.
+    \item Within seconds, review your estimated case duration, risk level, and empirical success rate.
+    \item Review the color-coded interactive cards:
+    \begin{itemize}
+        \item Note your applicable sections under the \textbf{Bharatiya Nyaya Sanhita (BNS) 2023}.
+        \item Read your statutory rights and immediate procedural survival steps.
+        \item If facing active cyber fraud, immediately dial the listed emergency helpline \textbf{1930}.
+    \end{itemize}
+\end{enumerate}
+
+\section*{Workflow 2: Drafting and Downloading a Court-Ready FIR}
+\begin{enumerate}
+    \item Click \textbf{``Documents''} in the top navigation bar.
+    \item Under the tabbed selector, ensure \textbf{``First Information Report (FIR)''} is active.
+    \item Fill in the required particulars: Complainant Name, Guardian Name, Police Station, District, Date/Time, and a chronological statement of facts.
+    \item Observe the right preview pane: your text is dynamically formatted in real time adhering to Section 173 BNSS specifications.
+    \item Click \textbf{``Download Official Vector PDF''}.
+    \item A formal, court-admissible A4 PDF complete with judicial headers, jurisdictional clauses, and verification averments will immediately download to your computer, ready for physical printing and police station submission.
+\end{enumerate}

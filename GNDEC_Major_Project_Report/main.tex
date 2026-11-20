@@ -1,0 +1,53 @@
+% ==============================================================================
+% Guru Nanak Dev Engineering College, Ludhiana
+% Department of Computer Science and Engineering
+% Major Project Final Report (PRCS-103)
+% ==============================================================================
+
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ── Load All System Configurations, Geometry, and Packages ───────────────────
+\input{preamble.tex}
+
+\begin{document}
+
+% ── Front Matter (Roman Numerals) ─────────────────────────────────────────────
+% Outer Cover, Inner Title, Certificate, Abstract, Acknowledgement, Lists, TOC
+\input{frontmatter.tex}
+
+% ── Main Chapters (Arabic Numerals starting from Chapter 1) ────────────────────
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% Chapter 1: Introduction
+\input{chapter1_introduction.tex}
+
+% Chapter 2: Requirement Analysis and System Specification
+\input{chapter2_requirements.tex}
+
+% Chapter 3: System Design
+\input{chapter3_system_design.tex}
+
+% Chapter 4: Implementation and Testing
+\input{chapter4_implementation_testing.tex}
+
+% Chapter 5: Results and Discussions
+\input{chapter5_results_discussion.tex}
+
+% Chapter 6: Conclusion and Future Scope
+\input{chapter6_conclusion.tex}
+
+% ── References and Bibliography (IEEE Style) ──────────────────────────────────
+\cleardoublepage
+\addcontentsline{toc}{chapter}{References}
+\singlespacing
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+% ── Appendix and Annexures ────────────────────────────────────────────────────
+\cleardoublepage
+\doublespacing
+\input{appendix.tex}
+
+\end{document}

@@ -1,6 +1,41 @@
 import axios from "axios";
-const BASE = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
-const api = axios.create({ baseURL: BASE, timeout: 20000, headers: { "Content-Type": "application/json" } });
+
+// ── Smart Base URL Resolution ──
+export const isLocalhost = () => {
+  if (typeof window === "undefined") return true;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+};
+
+export const getBaseUrl = () => {
+  // 1. Explicit environment variable set at build/deploy time
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined") {
+    // 2. Manual runtime override saved in browser
+    const stored = localStorage.getItem("pl_backend_url");
+    if (stored) return stored.replace(/\/+$/, "");
+
+    // 3. Localhost development fallback
+    if (isLocalhost()) {
+      return "http://127.0.0.1:5001";
+    }
+
+    // 4. On live production deployments with relative reverse proxy
+    return "";
+  }
+  return "http://127.0.0.1:5001";
+};
+
+export const BASE = getBaseUrl();
+
+// Timeout increased to 75s to gracefully tolerate cloud free-tier cold starts (Render/Koyeb)
+const api = axios.create({
+  baseURL: BASE,
+  timeout: 75000,
+  headers: { "Content-Type": "application/json" }
+});
 
 // Add JWT token to all requests if available
 api.interceptors.request.use((config) => {
@@ -9,24 +44,56 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle 401 globally & auto-retry once on cloud cold-starts / timeouts
 api.interceptors.response.use(
   (r) => r,
-  (err) => {
+  async (err) => {
+    const config = err?.config;
+    // Handle 401 Unauthorized
     if (err?.response?.status === 401) {
       localStorage.removeItem("jl_token");
       localStorage.removeItem("jl_user");
+      return Promise.reject(err);
     }
+
+    // Auto-retry once on network timeouts or 502/503/504 errors (typical for sleeping free-tier containers)
+    if (config && !config.__isRetry) {
+      const isColdStartOrTimeout =
+        !err.response ||
+        err.code === "ECONNABORTED" ||
+        [502, 503, 504].includes(err.response?.status);
+
+      if (isColdStartOrTimeout) {
+        config.__isRetry = true;
+        // Wait 3.5 seconds before retrying to give sleeping container time to finish booting
+        await new Promise((res) => setTimeout(res, 3500));
+        return api(config);
+      }
+    }
+
     return Promise.reject(err);
   }
 );
 
-// Ensure Authorization header uses Bearer format (override broken interceptor if present)
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("jl_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// ── Silent Pre-Warming Ping (Wakes sleeping cloud container on page load) ──
+export const pingServer = async () => {
+  try {
+    const res = await api.get("/api/health", { timeout: 15000 });
+    return res.data;
+  } catch {
+    return null;
+  }
+};
+
+// ── Runtime Backend Configuration ──
+export const setCustomBackendUrl = (url) => {
+  if (url) {
+    localStorage.setItem("pl_backend_url", url.trim());
+  } else {
+    localStorage.removeItem("pl_backend_url");
+  }
+  window.location.reload();
+};
 
 // ── RAG / Legal APIs ──
 export const chatAPI = (message, mode = "both", lang = "en") => api.post("/api/chat", { message, mode, lang }).then(r => r.data);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { Chart, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, Filler } from "chart.js";
-import { statsAPI, ragEvalAPI, dbStatsAPI } from "../services/api";
+import { statsAPI, ragEvalAPI, dbStatsAPI, isLocalhost } from "../services/api";
 import { translate } from "../i18n";
 Chart.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -42,10 +42,34 @@ export default function DashboardPage({ theme = "light", lang = "en" }) {
     }
   };
 
-  useEffect(() => { statsAPI().then(d => { setStats(d); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  const fetchStats = () => {
+    setLoading(true);
+    statsAPI()
+      .then(d => { setStats(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchStats(); }, []);
 
   if (loading) return <div className="page" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}><div className="ldr"><span /><span /><span /></div></div>;
-  if (!stats) return   <div className="page" style={{ textAlign: "center", color: "var(--dim)", paddingTop: 80 }}>⚠️ {t("Backend not running. Run:")} <code style={{ color: "var(--gold)" }}>cd backend && python app.py</code></div>;
+  if (!stats) {
+    const isLocal = isLocalhost();
+    return (
+      <div className="page" style={{ maxWidth: 600, margin: "60px auto", textAlign: "center", padding: "30px 20px" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>{isLocal ? "⚠️" : "⏳"}</div>
+        <h3 style={{ fontSize: 18, marginBottom: 8 }}>{isLocal ? t("Backend Server Offline") : t("Cloud Server Waking Up")}</h3>
+        <p style={{ color: "var(--dim)", fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+          {isLocal
+            ? <span>{t("Backend not running. Run in your terminal:")} <br /><code style={{ display: "inline-block", marginTop: 8, padding: "6px 14px", background: "rgba(0,0,0,0.3)", borderRadius: 6, color: "var(--gold)" }}>cd backend && python app.py</code></span>
+            : t("PocketLaw's free cloud backend may be spinning up from idle sleep mode (takes ~30-45s). Please retry.")
+          }
+        </p>
+        <button type="button" className="btn btn-g" onClick={fetchStats} style={{ display: "inline-flex", alignItems: "center", gap: 8, margin: "0 auto" }}>
+          <i className="fas fa-rotate-right" /> {t("Retry Connection")}
+        </button>
+      </div>
+    );
+  }
 
   const typeKeys = Object.keys(stats.case_types);
   const typeLabels = typeKeys.map(t);

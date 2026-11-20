@@ -1,0 +1,314 @@
+% ==============================================================================
+% Chapter 4: Implementation and Testing
+% ==============================================================================
+\chapter{Implementation and Testing}
+\label{chap:implementation_testing}
+
+\section{Introduction to Languages, IDEs, Tools, and Technologies Used}
+\label{sec:tech_stack}
+
+The physical realization of the PocketLaw platform requires an interconnected ecosystem of programming languages, modern frameworks, mathematical computation libraries, and development utilities. Every component was selected based on computational efficiency, open-source stability, and architectural synergy.
+
+\subsection{Back-End Languages, Frameworks, and Libraries}
+The back-end server runs on Python 3.10+ (empirically tested and verified on \textbf{Python 3.14.0}) and utilizes the production-hardened libraries enumerated below:
+
+\begin{enumerate}
+    \item \textbf{Python 3.14 (Core Runtime):}
+    Python serves as the core back-end programming language, providing native support for complex mathematical array operations, asynchronous socket handling, Unicode multilingual text manipulation, and seamless integration with artificial intelligence and data science ecosystems.
+    
+    \item \textbf{Flask 3.1.3 (Micro-web Application Framework):}
+    Flask provides the lightweight RESTful HTTP routing gateway. It handles incoming JSON payloads, CORS preflight negotiations, stateless JWT authorization headers, static file serving, and dynamic binary streaming for ReportLab-compiled vector PDF downloads.
+    
+    \item \textbf{SQLAlchemy 2.1.4 (Object-Relational Mapping):}
+    SQLAlchemy manages the relational database persistence layer. Operating via the modern `declarative_base` pattern and thread-scoped sessions (`scoped_session`), it provides robust schema definitions, relationship cascades (`cascade="all, delete-orphan"`), and connection pool recycling (`pool_recycle=300`) to guarantee transaction safety across multi-threaded and serverless deployments.
+    
+    \item \textbf{SQLite 3 with Write-Ahead Logging (WAL Mode):}
+    The transactional database operates directly in-process via SQLite 3, eliminating external daemon overhead. By executing `PRAGMA journal_mode=WAL`, SQLite implements write-ahead logging, allowing concurrent reader processes to read the database without blocking writer transactions and vice versa. Enforcing `PRAGMA foreign_keys=ON` ensures strict relational integrity.
+    
+    \item \textbf{Scikit-Learn 1.8.0 \& Scipy 1.17.1 (Vector Space Engine):}
+    Scikit-learn's `TfidfVectorizer` computes the 15,000-dimensional sparse feature space using sublinear term frequency scaling and smooth inverse document frequency. Scipy's sparse matrix package (`scipy.sparse.csr_matrix`) stores the 2,290 chunk embeddings with \textbf{99.08\% sparsity}, enabling high-speed cosine similarity evaluations.
+    
+    \item \textbf{ReportLab 5.0.1 (Vector PDF Generation Engine):}
+    ReportLab compiles formal, publication-grade vector PDF instruments directly into in-memory byte streams (`io.BytesIO`). It utilizes standard typographic flowables (`SimpleDocTemplate`, `Paragraph`, `Table`, `Spacer`, `HRFlowable`) and calibrated point-measurement coordinate grids to generate court-admissible legal documents featuring standardized judicial headers and two-column Notary Jurat attestations.
+    
+    \item \textbf{Google Generative AI 0.8.6 (Grounded LLM Synthesis):}
+    Provides the client interface to Google Gemini models (`gemini-3.1-flash-lite`, `gemini-flash-latest`, `gemini-3.8-flash`). It is utilized under strict prompt boundary constraints to synthesize natural language legal assessments strictly grounded on retrieved Supreme Court chunks.
+    
+    \item \textbf{Werkzeug 3.1.9 \& PyCryptodome / Hashlib (Security):}
+    Employs PBKDF2 with SHA-256 for cryptographic password hashing and verification (`generate_password_hash`, `check_password_hash`), alongside HMAC-SHA256 for generating and validating stateless JSON Web Tokens.
+\end{enumerate}
+
+\subsection{Front-End Languages, Frameworks, and Tools}
+The client-side interface is developed as a modern Single Page Application (SPA) utilizing Node.js 18+ and the following libraries:
+
+\begin{enumerate}
+    \item \textbf{React 18.2.0 (Component-Driven UI Framework):}
+    React 18 powers the reactive presentation layer. Leveraging concurrent rendering, state hooks (`useState`, `useEffect`), and a component hierarchy, it delivers real-time keystroke live document preview and instantaneous route navigation.
+    
+    \item \textbf{React Router DOM 6.20.0 (Client-Side Routing):}
+    Manages declarative, browser-history navigation across all ten application views (`/`, `/dashboard`, `/documents`, `/laws`, `/search`, `/rag`, `/steps`, `/history`, `/login`, `/profile`) without page reloads.
+    
+    \item \textbf{Axios 1.6.0 (HTTP Client with Interceptors):}
+    Handles asynchronous HTTP communication with the Flask gateway. Axios interceptors automatically attach the `Authorization: Bearer <token>` header to all outgoing requests and handle 401 Unauthorized responses globally by clearing invalid tokens.
+    
+    \item \textbf{Chart.js 4.4.0 \& React-Chartjs-2 5.2.0 (Data Visualization):}
+    Renders interactive canvas-based analytical charts on the legal dashboard, visualizing case distributions, outcome success rates, and historical timelines.
+    
+    \item \textbf{Lucide React 0.294.0 (Vector Iconography):}
+    Provides crisp, accessible SVG vector icons throughout the navigation bars, document tabs, and legal entity cards.
+\end{enumerate}
+
+\subsection{Integrated Development Environments and Utilities}
+\begin{itemize}
+    \item \textbf{Visual Studio Code:} Primary IDE used for code authoring, syntax highlighting, debugging, and Git version control.
+    \item \textbf{Postman \& cURL:} Utilized for API endpoint testing, HTTP payload validation, and header verification.
+    \item \textbf{Git 2.45+:} Distributed version control system tracking repository history and branch merging.
+    \item \textbf{PowerShell 7 / Windows Terminal:} Command-line environment for process execution, environment variable configuration, and batch automation.
+\end{itemize}
+
+\section{Algorithms and Pseudocode Used}
+\label{sec:algorithms}
+
+The core algorithmic contributions of PocketLaw are formalized below using standard algorithmic conventions.
+
+\subsection{Algorithm 1: Sublinear TF-IDF Sparse Feature Matrix Construction}
+Algorithm~\ref{alg:tfidf_construction} defines the offline corpus indexing pipeline that transforms 2,290 Supreme Court precedent chunks into a 15,000-dimensional sparse CSR matrix.
+
+\begin{algorithm}[H]
+\caption{Sublinear TF-IDF Sparse Feature Matrix Construction and Serialization}
+\label{alg:tfidf_construction}
+\begin{algorithmic}[1]
+\Require Legal chunk corpus $D = \{d_1, d_2, \dots, d_N\}$ where $N = 2,290$; Vocabulary size $V = 15,000$.
+\Ensure Serialized Vectorizer model $\mathcal{V}$ and Compressed Sparse Row matrix $\mathbf{M} \in \mathbb{R}^{N \times V}$.
+\State Initialize vocabulary frequency map $\mathcal{F} \leftarrow \emptyset$
+\For{each document chunk $d \in D$}
+    \State Tokenize $d$ into unigrams and bigrams: $T_d \leftarrow \text{ExtractNGrams}(d, n \in \{1, 2\})$
+    \State Remove English stop words and punctuation: $T_d' \leftarrow \text{Filter}(T_d)$
+    \State Update global document frequencies: $\forall t \in T_d', \, \mathcal{F}[t] \leftarrow \mathcal{F}[t] + 1$
+\EndFor
+\State Select top $V = 15,000$ features with highest term frequency across $D$ to form vocabulary $\mathcal{W}$
+\For{each token $t_j \in \mathcal{W}$ where $j \in \{1, \dots, V\}$}
+    \State Compute smooth inverse document frequency:
+    \State $\text{IDF}(t_j) \leftarrow \log\left(\frac{1 + N}{1 + \mathcal{F}[t_j]}\right) + 1$
+\EndFor
+\State Initialize sparse matrix $\mathbf{M} \in \mathbb{R}^{N \times V}$ in CSR format
+\For{each document index $i \in \{1, \dots, N\}$}
+    \For{each vocabulary term $t_j \in \mathcal{W}$}
+        \State Compute term frequency: $f_{t_j, d_i} \leftarrow \text{CountOccurrences}(t_j, d_i)$
+        \If{$f_{t_j, d_i} > 0$}
+            \State $\text{TF}(t_j, d_i) \leftarrow 1 + \log(f_{t_j, d_i})$ \Comment{Sublinear scaling}
+            \State $\mathbf{M}[i, j] \leftarrow \text{TF}(t_j, d_i) \times \text{IDF}(t_j)$
+        \Else
+            \State $\mathbf{M}[i, j] \leftarrow 0$
+        \EndIf
+    \EndFor
+    \State Normalize row vector: $\mathbf{M}[i, :] \leftarrow \frac{\mathbf{M}[i, :]}{\|\mathbf{M}[i, :]\|_2}$ \Comment{Unit L2 Normalization}
+\EndFor
+\State Serialize vectorizer $\mathcal{V} \leftarrow (\mathcal{W}, \text{IDF})$ to `index/tfidf_vectorizer.pkl`
+\State Serialize sparse matrix $\mathbf{M}$ to `index/tfidf_matrix.npz`
+\State \Return $\mathcal{V}, \mathbf{M}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Algorithm 2: Calibrated Cosine Similarity Precedent Retrieval}
+Algorithm~\ref{alg:cosine_retrieval} specifies the runtime information retrieval kernel executed when a user submits a natural language grievance query.
+
+\begin{algorithm}[H]
+\caption{Calibrated Cosine Similarity Precedent Retrieval with Vernacular Expansion}
+\label{alg:cosine_retrieval}
+\begin{algorithmic}[1]
+\Require Raw citizen query string $q$; Top-$K$ candidate count $K = 5$; Retrieval threshold $\tau = 0.05$; Serialized Vectorizer $\mathcal{V}$; Sparse Matrix $\mathbf{M} \in \mathbb{R}^{N \times V}$; Chunk metadata list $\mathcal{C}$.
+\Ensure Ordered list of retrieved Supreme Court precedent chunks $\mathcal{R}$.
+\State $q_{clean} \leftarrow \text{ToLowerCase}(\text{Trim}(q))$
+\State Define vernacular mapping dictionary $\mathcal{H} \leftarrow \{\text{``chori''}: \text{``theft stolen''}, \text{``paise''}: \text{``money fraud''}, \dots\}$
+\For{each $(w_{hindi}, w_{eng}) \in \mathcal{H}$}
+    \If{$w_{hindi} \in q_{clean}$}
+        \State $q_{clean} \leftarrow q_{clean} + \text{ `` ''} + w_{eng}$ \Comment{Vernacular query expansion}
+    \EndIf
+\EndFor
+\State Project expanded query into sparse vector: $\mathbf{q} \leftarrow \mathcal{V}.\text{transform}([q_{clean}])$
+\State Normalize query vector: $\mathbf{q} \leftarrow \frac{\mathbf{q}}{\|\mathbf{q}\|_2}$
+\State Compute cosine similarity scores via matrix multiplication:
+\State $\mathbf{s} \leftarrow \mathbf{M} \cdot \mathbf{q}^T \in \mathbb{R}^N$ \Comment{Evaluates all 2,290 chunks in $\sim 41.6$ ms}
+\State Sort chunk indices by descending score: $\mathcal{I} \leftarrow \text{Argsort}(\mathbf{s})[\text{reverse}]$
+\State $\mathcal{R} \leftarrow []$
+\For{each index $i \in \mathcal{I}$}
+    \If{$\mathbf{s}[i] < \tau$}
+        \State \textbf{break} \Comment{Discard candidates failing calibrated threshold $\tau = 0.05$}
+    \EndIf
+    \State Construct candidate object:
+    \State $chunk \leftarrow \mathcal{C}[i]$
+    \State $chunk.\text{score} \leftarrow \mathbf{s}[i]$
+    \State Append $chunk$ to $\mathcal{R}$
+    \If{$|\mathcal{R}| \ge K$}
+        \State \textbf{break}
+    \EndIf
+\EndFor
+\State \Return $\mathcal{R}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Algorithm 3: Hybrid Grounded Legal Synthesis and Failover}
+Algorithm~\ref{alg:hybrid_synthesis} delineates the dual-tier synthesis pipeline that enforces prompt grounding constraints on Google Gemini while guaranteeing offline fallback.
+
+\begin{algorithm}[H]
+\caption{Hybrid Grounded Legal Synthesis with Multi-Model Failover}
+\label{alg:hybrid_synthesis}
+\begin{algorithmic}[1]
+\Require Grievance message $m$; Matched statutory dictionary $\mathcal{KB}$; Retrieved chunks text $T_{rag}$; Target language $L \in \{\text{en}, \text{hi}, \text{pa}, \text{ur}\}$.
+\Ensure Grounded executive legal advisory narrative $A$.
+\If{$\text{is\_gemini\_available}() = \textbf{True}$}
+    \State Formulate grounding prompt $\mathcal{P}_{ground}$ strictly incorporating $\mathcal{KB}$, $T_{rag}$, and anti-hallucination rules
+    \State Set execution deadline: $t_{limit} \leftarrow \text{CurrentTime}() + 8.0\text{ seconds}$
+    \State Candidate models: $\mathcal{M} \leftarrow [\text{gemini-3.1-flash-lite}, \text{gemini-flash-latest}, \text{gemini-3.8-flash}]$
+    \For{each model name $M \in \mathcal{M}$}
+        \If{$\text{CurrentTime}() \ge t_{limit}$}
+            \State \textbf{break}
+        \EndIf
+        \Try
+            \State Response $R \leftarrow \text{CallGeminiAPI}(M, \mathcal{P}_{ground}, \text{timeout}=t_{limit} - \text{CurrentTime}())$
+            \If{$R \neq \textbf{null}$ \textbf{and} $\text{Length}(R) > 80$}
+                \State \Return $\text{Trim}(R)$ \Comment{Successful grounded Gemini synthesis}
+            \EndIf
+        \Catch
+            \State \textbf{continue} \Comment{Failover to next candidate model}
+        \EndTry
+    \EndFor
+\EndIf
+\State \Comment{Offline Extractive Fallback: 100\% Deterministic Synthesis}
+\State Extract primary statute: $S_1 \leftarrow \mathcal{KB}.\text{laws}[0]$
+\State Retrieve localized narrative templates for language $L$: $\mathcal{T}_L \leftarrow \text{GetTemplate}(L)$
+\State $A \leftarrow \mathcal{T}_L.\text{overview} + \text{ ``\textbackslash n\textbackslash n''} + \mathcal{T}_L.\text{principles}$
+\If{$T_{rag} \neq \textbf{null}$ \textbf{and} ``No relevant'' $\notin T_{rag}$}
+    \State $A \leftarrow A + \text{ ``\textbackslash n\textbackslash n''} + \mathcal{T}_L.\text{rag\_head} + \text{ ``\textbackslash n''} + \text{ExtractTopSentences}(T_{rag}, 3)$
+\EndIf
+\State $A \leftarrow A + \text{ ``\textbackslash n\textbackslash n''} + \mathcal{T}_L.\text{pointer}$
+\State \Return $A$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Algorithm 4: Court-Ready Vector PDF Document Generation}
+Algorithm~\ref{alg:pdf_generation} formalizes the server-side compilation of court-ready vector PDF instruments featuring ReportLab flowables, judicial headers, and two-column Notary Jurat blocks.
+
+\begin{algorithm}[H]
+\caption{Court-Ready Vector PDF Generation with Notary Jurat Flowables}
+\label{alg:pdf_generation}
+\begin{algorithmic}[1]
+\Require Document type $T_{doc} \in \{\text{fir}, \text{notice}, \text{affidavit}, \text{complaint}\}$; Form dictionary $\mathcal{D}$.
+\Ensure Rendered court plain text $S_{text}$; In-memory PDF binary stream $\mathcal{B}$.
+\State $\mathcal{B} \leftarrow \text{NewBytesIO}()$
+\State Initialize document template: $Doc \leftarrow \text{SimpleDocTemplate}(\mathcal{B}, \text{pagesize}=\text{A4}, \text{margins}=0.75\text{in})$
+\State $Story \leftarrow []$
+\State Select formatting handler based on $T_{doc}$:
+\If{$T_{doc} = \text{``fir''}$}
+    \State $S_{text} \leftarrow \text{format\_fir\_text}(\mathcal{D})$
+    \State Build judicial header: $Story.\text{append}(\text{JudicialBanner}(\text{``FORM NO. 1 - FIRST INFORMATION REPORT''}, \text{BNSS 173}))$
+\ElsIf{$T_{doc} = \text{``notice''}$}
+    \State $S_{text} \leftarrow \text{format\_notice\_text}(\mathcal{D})$
+    \State Build legal notice header: $Story.\text{append}(\text{NoticeBanner}(\text{Sec 80 CPC}, \mathcal{D}.\text{deadline}))$
+\ElsIf{$T_{doc} = \text{``affidavit''}$}
+    \State $S_{text} \leftarrow \text{format\_affidavit\_text}(\mathcal{D})$
+    \State Build sworn affidavit header: $Story.\text{append}(\text{AffidavitBanner}(\mathcal{D}.\text{city}))$
+\ElsIf{$T_{doc} = \text{``complaint''}$}
+    \State $S_{text} \leftarrow \text{format\_complaint\_text}(\mathcal{D})$
+    \State Build consumer commission header: $Story.\text{append}(\text{CDRCBanner}(\text{Sec 35 CPA 2019}))$
+\EndIf
+\State Construct structured party table: $P_{table} \leftarrow \text{BuildPartyGrid}(\mathcal{D})$
+\State $Story.\text{append}(P_{table})$
+\State $Story.\text{append}(\text{Spacer}(0.2\text{in}))$
+\State Format chronological statement of facts: $F_{para} \leftarrow \text{Paragraph}(\mathcal{D}.\text{description}, \text{JustifiedStyle})$
+\State $Story.\text{append}(F_{para})$
+\State Build two-column Notary Jurat / Oath Commissioner attestation block:
+\State $\text{JuratData} \leftarrow [[\text{``[NOTARY PUBLIC SEAL]'', ``SIGNATURE OF ATTESTING AUTHORITY''}],$
+\State \phantom{Build} \quad\quad $[\text{``Commission Expires: \_\_\_\_'', ``Regn No: \_\_\_\_\_\_\_\_\_\_\_''}]]$
+\State $J_{table} \leftarrow \text{Table}(\text{JuratData}, \text{colWidths}=[3.0\text{in}, 3.5\text{in}])$
+\State $Story.\text{append}(\text{KeepTogether}([J_{table}]))$
+\State $Doc.\text{build}(Story)$
+\State $\mathcal{B}.\text{seek}(0)$
+\State \Return $S_{text}, \mathcal{B}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Testing Techniques: In Context of Project Work}
+\label{sec:testing_techniques}
+
+Quality assurance for the PocketLaw platform was conducted through a multi-tier testing methodology spanning the following specialized testing disciplines:
+
+\begin{enumerate}
+    \item \textbf{Unit Testing:}
+    Unit tests isolate and verify individual functions and class methods in complete isolation. Individual test cases in `backend/tests/test_pocketlaw.py` validate password hashing, user dictionary serialization, specific text formatters (`format_fir_text`, `format_notice_text`), statutory existence in `LAWS_DB`, and isolated PDF byte stream headers.
+    
+    \item \textbf{Integration Testing:}
+    Integration tests evaluate the cooperative functionality between interconnected software modules. These tests verify that calling the document generator seamlessly triggers database persistence in `saved_documents`, that JWT tokens issued by `/api/auth/login` authenticate subsequent requests to `/api/documents/save`, and that the RAG retrieval function properly extracts data from the loaded NumPy/Scipy sparse matrix.
+    
+    \item \textbf{System and Regression Testing:}
+    The entire software application was subjected to automated end-to-end regression runs using the Python `unittest` framework. The automated test runner executes the comprehensive 16-test suite, ensuring that code modifications or dependency updates (such as running on Python 3.14) do not induce regressions.
+    
+    \item \textbf{Security and Input Validation Testing:}
+    Security tests verify that SQL injection attempts through parameter strings are neutralized by SQLAlchemy parameterized queries, that cross-site scripting (XSS) inputs are escaped by HTML sanitizers in ReportLab and React, and that protected endpoints strictly return HTTP 401 Unauthorized when unauthenticated requests are dispatched.
+    
+    \item \textbf{Mocking and Isolation Testing:}
+    To test the Gemini initialization logic without making external network calls or consuming API quotas during test execution, Python's `unittest.mock.patch` was utilized to mock external network endpoints and verify that module imports execute without network side effects.
+\end{enumerate}
+
+\section{Test Cases Designed for the Project Work}
+\label{sec:test_cases}
+
+Table~\ref{tab:test_case_matrix} documents the comprehensive test cases executed against the PocketLaw platform. The suite achieved a \textbf{100\% pass rate (16/16 automated test suites passing)} in the automated environment, confirming absolute operational reliability.
+
+\begin{longtable}{p{1.2cm}p{2.6cm}p{3.8cm}p{2.8cm}p{3.0cm}c}
+\caption{Comprehensive Automated Test Case Execution Matrix} \label{tab:test_case_matrix} \\
+\toprule
+\textbf{TC ID} & \textbf{Module} & \textbf{Test Scenario} & \textbf{Input Data} & \textbf{Expected Output} & \textbf{Status} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{r}{\textit{Continued on next page}} \\
+\bottomrule
+\endfoot
+\bottomrule
+\endlongtable}
+\vspace{-1.2cm}
+
+\begin{longtable}{p{1.2cm}p{2.6cm}p{3.8cm}p{2.8cm}p{3.0cm}c}
+\toprule
+\textbf{TC ID} & \textbf{Module} & \textbf{Test Scenario} & \textbf{Input Data} & \textbf{Expected Output} & \textbf{Status} \\
+\midrule
+\endhead
+\textbf{TC-01} & Persistence & SQLite WAL engine health and diagnostic stats & Call `database.get_database_stats()` & Returns connected status, WAL engine, user count & \textbf{PASS} \\
+\midrule
+\textbf{TC-02} & Persistence & User creation and PBKDF2 hash verification & Email: `test@org`, Pwd: `Secret123!` & User created; hash verified; wrong pwd rejected & \textbf{PASS} \\
+\midrule
+\textbf{TC-03} & Persistence & Document draft and bookmark cascade persistence & User UUID, FIR payload, SC Case ID 101 & Saved in DB; retrieved; bookmark deleted cleanly & \textbf{PASS} \\
+\midrule
+\textbf{TC-04} & Typography & First Information Report (FIR) vector PDF generation & Complainant details, PS Division 5, Ludhiana & Valid `%PDF` binary $> 1000$ bytes; text contains BNSS 173 & \textbf{PASS} \\
+\midrule
+\textbf{TC-05} & Typography & Section 80 CPC Formal Legal Notice PDF & Advocate Priya, 15-day cure notice, refund demand & Valid `%PDF` stream $> 1000$ bytes; notice text verified & \textbf{PASS} \\
+\midrule
+\textbf{TC-06} & Typography & Sworn Affidavit PDF with Notary Jurat & Deponent Amit, proof of address, Chandigarh & Valid `%PDF` binary; contains deponent verification & \textbf{PASS} \\
+\midrule
+\textbf{TC-07} & Typography & Section 35 CPA Consumer Complaint PDF & Complainant Sunita, Airline cancellation, Ludhiana & Valid `%PDF` stream; contains E-Daakhil prayer format & \textbf{PASS} \\
+\midrule
+\textbf{TC-08} & Typography & Individual reactive preview plain-text formatters & Form dictionary with complainant name & Plain text contains structured headers and name & \textbf{PASS} \\
+\midrule
+\textbf{TC-09} & Intelligence & Verification of modern criminal statutes (BNS 2023) & Inspect `flask_app.LAWS_DB` & BNS 2023, BNSS 2023, BSA 2023 present with $\ge 5$ sections & \textbf{PASS} \\
+\midrule
+\textbf{TC-10} & Intelligence & Precedent retrieval under diverse legal queries & Queries: ``bail'', ``fraud'', ``theft'', ``consumer refund'' & Top-3 chunks returned with text and cosine score $> 0$ & \textbf{PASS} \\
+\midrule
+\textbf{TC-11} & Intelligence & Gemini non-connecting import isolation test & Patch `GEMINI_API_KEY`, reload module & GenerativeModel not called during module load & \textbf{PASS} \\
+\midrule
+\textbf{TC-12} & REST API & Health check API diagnostic endpoint & `GET /api/health` & HTTP 200; `status: "ok"`; chunks count: 2,290 & \textbf{PASS} \\
+\midrule
+\textbf{TC-13} & REST API & Statutory catalog and cross-mapping endpoint & `GET /api/laws` & HTTP 200; includes BNS 2023 and Consumer Act & \textbf{PASS} \\
+\midrule
+\textbf{TC-14} & REST API & Academic RAG evaluation benchmark endpoint & `GET /api/rag/eval` & HTTP 200; Precision@3 = 90.0\%, MRR = 0.92 & \textbf{PASS} \\
+\midrule
+\textbf{TC-15} & REST API & Real-time reactive document preview endpoint & `POST /api/documents/preview` (FIR payload) & HTTP 200; `doc_type: "fir"`; text rendered & \textbf{PASS} \\
+\midrule
+\textbf{TC-16} & REST API & Multi-document binary PDF download routes & `POST` to `/download/fir`, `/notice`, `/affidavit`, `/complaint` & HTTP 200; `Content-Type: application/pdf`; valid binary & \textbf{PASS} \\
+\midrule
+\textbf{TC-17} & Security & Unauthorized access to protected document save & `POST /api/documents/save` without token & HTTP 401 Unauthorized; persistence blocked & \textbf{PASS} \\
+\midrule
+\textbf{TC-18} & UI / SPA & Production build bundle optimization & `npm run build` executed in `frontend/` & Return Code 0; compiled successfully (194 kB gzip) & \textbf{PASS} \\
+\bottomrule
+\end{longtable}
