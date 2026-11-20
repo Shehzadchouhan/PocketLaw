@@ -3,29 +3,65 @@ import axios from "axios";
 // ── Smart Base URL Resolution ──
 export const isLocalhost = () => {
   if (typeof window === "undefined") return true;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  if (process.env.NODE_ENV === "development") return true;
+  const host = (window.location.hostname || "").toLowerCase();
+  const protocol = window.location.protocol || "";
+  const port = window.location.port || "";
+
+  // 1. File protocol (file:///.../index.html opened locally) or missing host
+  if (protocol === "file:" || !host) return true;
+
+  // 2. Loopback / local development addresses
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "[::1]" ||
+    host === "::1"
+  ) {
+    return true;
+  }
+
+  // 3. Common local development ports
+  if (["3000", "5000", "5001", "5173", "8000", "8080"].includes(port)) {
+    return true;
+  }
+
+  // 4. Local private network IPs (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x) or .local
+  if (
+    host.endsWith(".local") ||
+    host.endsWith(".lan") ||
+    host.endsWith(".internal") ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+  ) {
+    return true;
+  }
+
+  return false;
 };
 
 export const getBaseUrl = () => {
-  // 1. Explicit environment variable set at build/deploy time
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL.replace(/\/+$/, "");
-  }
   if (typeof window !== "undefined") {
-    // 2. Manual runtime override saved in browser
+    // 1. Manual runtime override saved in browser
     const stored = localStorage.getItem("pl_backend_url");
     if (stored) return stored.replace(/\/+$/, "");
 
-    // 3. Localhost development fallback
+    // 2. Localhost development fallback (always target local Flask backend on 5001)
     if (isLocalhost()) {
-      return "http://127.0.0.1:5001";
+      return process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
+    }
+
+    // 3. Explicit environment variable set at build/deploy time for production
+    if (process.env.REACT_APP_API_URL) {
+      return process.env.REACT_APP_API_URL.replace(/\/+$/, "");
     }
 
     // 4. On live production deployments with relative reverse proxy
     return "";
   }
-  return "http://127.0.0.1:5001";
+  return process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
 };
 
 export const BASE = getBaseUrl();
@@ -37,8 +73,11 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" }
 });
 
-// Add JWT token to all requests if available
+// Dynamic BaseURL resolution & JWT token injection
 api.interceptors.request.use((config) => {
+  if (!config.baseURL) {
+    config.baseURL = getBaseUrl();
+  }
   const token = localStorage.getItem("jl_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

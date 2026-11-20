@@ -364,7 +364,8 @@ export default function HomePage({ lang = "en" }) {
             type: "ai",
             isError: true,
             retryQuery: msg,
-            isLocal: isLocalhost()
+            isLocal: isLocalhost(),
+            apiUrl: getBaseUrl() || "http://127.0.0.1:5001"
           }
         ]);
       }
@@ -454,28 +455,50 @@ export default function HomePage({ lang = "en" }) {
                 <div className="msg-av">{msg.type === "user" ? <i className="fas fa-user" /> : <i className="fas fa-scale-balanced" />}</div>
                 <div className={`bubble${msg.data ? " wide" : ""}`}>
                   {msg.isError ? (
-                    <div className="res" style={{ margin: 0, padding: "14px 16px", borderColor: "rgba(239, 68, 68, 0.35)", background: "rgba(239, 68, 68, 0.05)" }}>
+                    <div className="res" style={{ margin: 0, padding: "16px 18px", borderColor: "rgba(239, 68, 68, 0.35)", background: "rgba(239, 68, 68, 0.05)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--err)", fontWeight: 600, fontSize: 15, marginBottom: 8 }}>
                         <i className="fas fa-circle-exclamation" style={{ fontSize: 18 }} />
-                        <span>{msg.isLocal ? tUI("Can't reach local PocketLaw backend") : tUI("PocketLaw Cloud Engine is Waking Up")}</span>
+                        <span>{msg.isLocal ? tUI("Local Backend Server Not Running") : tUI("PocketLaw Cloud Engine is Waking Up")}</span>
                       </div>
                       {msg.isLocal ? (
                         <div style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.6 }}>
-                          <p style={{ margin: "0 0 6px 0" }}>Start your local Python backend in a terminal:</p>
-                          <pre style={{ background: "rgba(0,0,0,0.3)", padding: "10px 12px", borderRadius: 8, color: "var(--gold)", fontFamily: "monospace", margin: "6px 0", fontSize: 13 }}>cd backend{'\n'}python app.py</pre>
-                          <button
-                            type="button"
-                            className="btn btn-g btn-sm"
-                            onClick={() => send(msg.retryQuery)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8 }}
-                          >
-                            <i className="fas fa-rotate-right" /> {tUI("Retry Query")}
-                          </button>
+                          <p style={{ margin: "0 0 6px 0" }}>
+                            {tUI("Your React frontend is running offline, but cannot reach the Python backend at")} <code style={{ color: "var(--gold)" }}>{msg.apiUrl}</code>.
+                          </p>
+                          <p style={{ margin: "8px 0 4px 0", fontWeight: 600, color: "var(--ink)" }}>
+                            {tUI("To start the backend offline, open a separate terminal and run:")}
+                          </p>
+                          <pre style={{ background: "rgba(0,0,0,0.35)", padding: "10px 14px", borderRadius: 8, color: "var(--gold)", fontFamily: "monospace", margin: "6px 0", fontSize: 13 }}>cd backend{'\n'}python app.py</pre>
+                          <p style={{ fontSize: 12, margin: "4px 0 10px 0", color: "var(--dim)" }}>
+                            {tUI("Wait until the terminal shows 'Loaded 2290 RAG chunks' and 'Started on port 5001', then click Retry below:")}
+                          </p>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                            <button
+                              type="button"
+                              className="btn btn-g btn-sm"
+                              onClick={() => send(msg.retryQuery)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                            >
+                              <i className="fas fa-rotate-right" /> {tUI("Retry Query")}
+                            </button>
+                            <a
+                              href="http://127.0.0.1:5001/api/health"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-o btn-sm"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+                            >
+                              <i className="fas fa-heart-pulse" /> {tUI("Test Local Backend")}
+                            </a>
+                          </div>
                         </div>
                       ) : (
                         <div style={{ fontSize: 13.5, color: "var(--muted)", lineHeight: 1.6 }}>
                           <p style={{ margin: "0 0 8px 0" }}>
                             {tUI("Cloud services on free tiers (Render/Koyeb) sleep after 15 minutes of inactivity. When a request arrives, spinning up Python and loading the 2,290 judgment database takes 30–50 seconds.")}
+                          </p>
+                          <p style={{ fontSize: 12.5, margin: "4px 0 10px 0", color: "var(--dim)" }}>
+                            <b>Running offline locally?</b> Open a terminal and run <code style={{ color: "var(--gold)" }}>cd backend && python app.py</code>.
                           </p>
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                             <button

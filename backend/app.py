@@ -617,7 +617,7 @@ KB = {
             "BNS 2023 Sec 318 – Cheating (ex-IPC 420, if deposit fraudulently misappropriated)"
         ],
         "rights": ["Refund of entire security deposit upon peaceful handover of premises", "Mandatory 30-day written eviction notice requirement prior to eviction", "Protection against unlawful utility disconnection (water/electricity)", "Right to remain in possession until lawful order of Rent Controller / Civil Court"],
-        "steps": ["Gather lease agreement, rent receipts, bank payment statements, and handover videos", "Serve formal Section 80 CPC style Legal Notice via Registered Speed Post granting 15 days", "Approach Rent Authority / Rent Tribunal under State Tenancy Act", "If commercial or broker dispute, file Consumer Complaint on edaakhil.nic.in"],
+        "steps": ["Gather lease agreement, rent receipts, bank payment statements, and handover videos", "Serve formal Legal Notice under Transfer of Property Act / State Tenancy Act via Registered Post granting 15 days", "Approach Rent Authority / Rent Tribunal under State Tenancy Act", "If commercial or broker dispute, file Consumer Complaint on edaakhil.nic.in"],
         "helplines": ["NALSA Free Legal Aid: 15100", "National Consumer Helpline: 1915 / 1800-11-4000"],
         "sr": 70, "dur": "3–9 months", "risk": "Low"
     },

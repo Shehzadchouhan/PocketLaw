@@ -173,7 +173,9 @@ export default function StepsPage({ lang = "en" }) {
               <div className="res-h"><i className="fas fa-phone" />{t("Who to contact")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(a.helplines || []).map((h, i) => <div key={i} className="help-chip"><i className="fas fa-phone" />{h}</div>)}
-                <div className="help-chip" style={{ background: "var(--surface2)", color: "var(--ink2)" }}><i className="fas fa-hands-holding" />Free legal aid (NALSA): 15100</div>
+                {!(a.helplines || []).some(h => String(h).includes("15100")) && (
+                  <div className="help-chip" style={{ background: "var(--surface2)", color: "var(--ink2)" }}><i className="fas fa-hands-holding" />Free legal aid (NALSA): 15100</div>
+                )}
               </div>
             </div>
 

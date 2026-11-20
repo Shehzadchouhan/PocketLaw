@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { searchAPI, caseAPI, getBookmarksAPI, addBookmarkAPI, removeBookmarkAPI } from "../services/api";
 import toast from "react-hot-toast";
 import { translate } from "../i18n";
@@ -45,6 +46,7 @@ function Modal({ c, onClose, isBookmarked, onToggleBookmark, lang = "en" }) {
 }
 
 export default function SearchPage({ lang = "en" }) {
+  const nav = useNavigate();
   const t = (text) => translate(lang, text);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
@@ -85,7 +87,8 @@ export default function SearchPage({ lang = "en" }) {
   const toggleBookmark = async (c) => {
     const token = localStorage.getItem("jl_token");
     if (!token) {
-      toast.error("Please login to bookmark cases");
+      toast.error(t("Please login to bookmark cases"));
+      nav("/login");
       return;
     }
     const cId = String(c.id);
