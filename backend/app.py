@@ -377,6 +377,24 @@ with open(os.path.join(IDX, "cases.json")) as f:
 print(f"Loaded {len(CHUNKS)} RAG chunks, {len(CASES)} cases")
 
 # ── RAG Core ──────────────────────────────────────
+STOP_WORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
+    "can", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing",
+    "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
+    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself",
+    "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is",
+    "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself",
+    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
+    "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should",
+    "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them",
+    "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've",
+    "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd",
+    "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's",
+    "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't",
+    "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
+}
+
 def rag_retrieve(query, top_k=5, filter_type=None):
     """Retrieve top-k relevant chunks from PDF knowledge base"""
     # Translate common Hindi/Hinglish terms to English for better TF-IDF matching
@@ -395,6 +413,21 @@ def rag_retrieve(query, top_k=5, filter_type=None):
             query_en += " " + english_words
     
     q_vec = VECTORIZER.transform([query_en])
+
+    # Check for substantive terms in query vector:
+    # If the ONLY matched vocabulary terms are generic stopwords/pronouns (like 'my'), do not retrieve
+    active_indices = q_vec.indices
+    substantive_terms = []
+    for idx in active_indices:
+        for word, f_idx in VECTORIZER.vocabulary_.items():
+            if f_idx == idx:
+                if word not in STOP_WORDS:
+                    substantive_terms.append(word)
+                break
+
+    if not substantive_terms:
+        return []
+
     sims = cosine_similarity(q_vec, TFIDF_MATRIX).flatten()
     top_idx = sims.argsort()[-top_k * 4:][::-1]
     
@@ -504,6 +537,15 @@ def get_ai_summary(message, kb, rag_text, web_results, lang="en"):
     }
     target_lang = lang_map.get(lang, "English")
     
+    if kb.get("title") == "Unrecognized / Out-of-Domain Query":
+        return (
+            f"**❓ Unrecognized / Out-of-Domain Query**\n\n"
+            f"We could not detect a recognized Indian legal dispute or statutory violation in your query: **\"{message}\"**.\n\n"
+            f"PocketLaw is an AI-powered legal intelligence system designed for real-world citizen grievances under Indian law (such as tenancy disputes, cyber fraud, consumer refunds, workplace harassment, property issues, or stolen property).\n\n"
+            f"• **Fictional / Non-Legal Scenarios:** Indian statutes (including the Bharatiya Nyaya Sanhita 2023 and the Constitution) apply strictly to real persons and legal entities, not mythological or fantasy scenarios (such as dragons or mythical creatures).\n\n"
+            f"• **If this involves real property theft or damage:** If your bicycle, vehicle, or personal belongings were stolen or vandalized by an individual, that is a cognizable offence under **BNS Section 303 (Theft)** or **Section 324 (Mischief)**. Please rephrase your query with factual details (for example: *'My bicycle was stolen from outside my house, how do I file an FIR?'*) to receive relevant legal survival steps and draft an official FIR."
+        )
+
     # ── Attempt Grounded Gemini Synthesis if configured ──
     if is_gemini_available():
         try:
@@ -804,6 +846,31 @@ KB = {
         ],
         "sr": 68, "dur": "1–6 months", "risk": "Medium"
     },
+    "out_of_domain": {
+        "title": "Unrecognized / Out-of-Domain Query",
+        "icon": "❓",
+        "laws": [
+            "PocketLaw Knowledge Base – Specializes in Indian Statutory & Procedural Law",
+            "Modern Substantive & Procedural Codes: BNS 2023, BNSS 2023, BSA 2023",
+            "Special Enactments: Consumer Protection Act 2019, IT Act 2000, RERA 2016"
+        ],
+        "rights": [
+            "PocketLaw provides guidance strictly on verifiable Indian civil, criminal, and statutory disputes",
+            "Fictional, hypothetical, or fantasy matters fall outside Indian court jurisdiction",
+            "You have the right to free legal awareness for genuine real-world grievances under Indian law"
+        ],
+        "steps": [
+            "Rephrase your grievance with real-world facts (who was involved, what occurred, and what loss was suffered)",
+            "If this involves actual property theft or damage (e.g. bicycle or vehicle stolen), describe the theft clearly to generate an FIR under BNS Section 303 (Theft)",
+            "For genuine grievances, consult DLSA (District Legal Services Authority) or call toll-free NALSA Helpline 15100"
+        ],
+        "helplines": [
+            "NALSA Free Legal Aid (For Genuine Disputes): 15100",
+            "National Emergency Support: 112",
+            "National Cyber Crime Reporting: 1930"
+        ],
+        "sr": "N/A", "dur": "N/A", "risk": "N/A"
+    },
     "default": {
         "title": "General Legal Guidance",
         "icon": "⚖️",
@@ -963,9 +1030,37 @@ LAWS_DB = {
     }
 }
 
+# ── Fantasy & Out-of-Domain Filter ────────────────
+FANTASY_WORDS = {
+    "dragon", "dragons", "alien", "aliens", "ufo", "extraterrestrial", "ghost", "ghosts",
+    "bhoot", "bhooth", "chudail", "zombie", "zombies", "vampire", "vampires", "werewolf",
+    "superman", "batman", "spiderman", "ironman", "iron man", "avengers", "unicorn", "unicorns",
+    "dinosaur", "dinosaurs", "monster", "monsters", "witchcraft", "witch", "wizard",
+    "black magic", "jaadu tona", "time machine", "time travel", "teleportation", "spaceship",
+    "mermaid", "godzilla", "fairy", "fairies", "goblin", "goblins"
+}
+
+LEGAL_KEYWORDS = {
+    "law", "legal", "court", "judge", "police", "fir", "case", "act", "section", "crime", "criminal",
+    "civil", "rights", "notice", "advocate", "lawyer", "justice", "complaint", "dispute", "loss",
+    "compensation", "damages", "contract", "agreement", "money", "cheated", "stolen", "theft", "fraud",
+    "deposit", "rent", "tenant", "landlord", "employer", "salary", "wages", "fired", "refund", "defective",
+    "harassment", "accident", "vehicle", "divorce", "custody", "property", "land", "builder", "flat",
+    "arrest", "bail", "jail", "fine", "penalty", "government", "scheme", "yojana", "corporation",
+    "municipality", "pension", "ration", "subsidy", "bribe", "corruption", "consumer", "forum", "petition",
+    "order", "decree", "affidavit", "witness", "evidence", "investigation", "threat", "fight", "assault",
+    "injury", "claim", "damage", "recovery", "debt", "loan", "bank", "cheque", "bounced", "eviction",
+    "will", "inheritance", "partition", "tax", "gst", "challan", "kanun", "kanoon", "adalat", "thana",
+    "daroga", "muavza", "jurmana", "dhara", "bns", "bnss", "bsa", "ipc", "crpc", "bicycle", "cycle"
+}
+
 # ── NLP Problem Detection (Boundary-Aware & Weighted Multi-Domain Classifier) ─
 def detect_problem(text):
     t = text.lower()
+    words = set(re.findall(r'\b[a-z0-9\'-]+\b', t))
+    if any(w in words or w in t for w in FANTASY_WORDS):
+        return "out_of_domain"
+
     if any(phrase in t for phrase in ("what is law", "meaning of law", "define law", "law kya hai", "kanun kya hai")):
         return "law_definition"
     if any(phrase in t for phrase in ("what is a legal case", "what is legal case", "meaning of legal case", "legal case kya hai")):
@@ -992,8 +1087,9 @@ def detect_problem(text):
             "police harassment", "illegal detention"
         ],
         "theft": [
-            "chori", "chor", "stolen", "steal", "thief", "robbery", "snatch", "lift",
-            "gayab", "missing", "chura", "theft", "stolen bike", "stolen car", "stolen phone", "stolen property"
+            "chori", "chor", "stolen", "steal", "stole", "thief", "robbery", "snatch", "lift",
+            "gayab", "missing", "chura", "theft", "stolen bike", "stolen car", "stolen phone", "stolen property",
+            "stolen cycle", "stolen bicycle", "bicycle theft", "bike theft"
         ],
         "fraud": [
             "fraud", "scam", "cheat", "cyber", "phishing", "upi", "debit card",
@@ -1046,7 +1142,12 @@ def detect_problem(text):
         scores[k] = score
 
     best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else "default"
+    if scores[best] > 0:
+        return best
+
+    # If no dispute category matched, check if query has recognized legal/dispute keywords
+    has_legal_kw = any(w in LEGAL_KEYWORDS for w in words)
+    return "default" if has_legal_kw else "out_of_domain"
 
 # ── Document Generators ──────────────────────────
 def gen_fir(d):
@@ -1367,30 +1468,31 @@ def chat():
     kb = KB.get(key, KB["default"])
 
     # ── RAG Retrieval from PDFs ──
-    informational = key in ("law_definition", "legal_case")
+    informational = key in ("law_definition", "legal_case", "out_of_domain")
     rag_chunks = [] if informational else rag_retrieve(message, top_k=5)
     rag_text = "" if informational else rag_answer(message, rag_chunks)
 
     # ── Web Search (if mode includes web) ──
     web_results = []
-    if mode in ("web", "both"):
+    if mode in ("web", "both") and not informational:
         web_results = web_search(message, num=4)
 
 # ── Prediction ──
     # ── Similar Cases: filter by relevance to query instead of random ──
-    query_words = set(message.lower().split())
+    query_words = set(message.lower().split()) - STOP_WORDS
     scored_cases = []
-    for c in CASES:
-        case_text = f"{c.get('case_type','')} {c.get('summary','')} {c.get('outcome','')} {c.get('year','')}".lower()
-        relevance = sum(1 for w in query_words if w in case_text)
-        scored_cases.append((relevance, c))
-    scored_cases.sort(key=lambda x: x[0], reverse=True)
-    top_scored = [] if informational else [c for score, c in scored_cases[:5] if score > 0]
-    if not top_scored and not informational:
-        # Fallback: match by detected problem category
-        top_scored = [c for c in CASES if key.lower() in c.get("case_type","").lower() or key.lower() in c.get("summary","").lower()][:3]
-    if not top_scored and not informational:
-        top_scored = CASES[:3]
+    if not informational and key != "out_of_domain":
+        for c in CASES:
+            case_text = f"{c.get('case_type','')} {c.get('summary','')} {c.get('outcome','')} {c.get('year','')}".lower()
+            relevance = sum(1 for w in query_words if w in case_text)
+            scored_cases.append((relevance, c))
+        scored_cases.sort(key=lambda x: x[0], reverse=True)
+        top_scored = [c for score, c in scored_cases[:5] if score > 0]
+        if not top_scored and key not in ("default", "out_of_domain"):
+            # Fallback: match by detected problem category
+            top_scored = [c for c in CASES if key.lower() in c.get("case_type","").lower() or key.lower() in c.get("summary","").lower()][:3]
+    else:
+        top_scored = []
 
     # ── Gemini AI Answer (grounded on RAG + web results above, in selected language) ──
     gemini_answer = get_ai_summary(message, kb, rag_text, web_results, lang)

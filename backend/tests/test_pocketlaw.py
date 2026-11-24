@@ -251,6 +251,15 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(data["summary"]["mean_precision_at_3"], "90.0%")
         self.assertEqual(data["summary"]["mean_reciprocal_rank_mrr"], 0.92)
 
+    def test_out_of_domain_query_handling(self):
+        resp = self.client.post("/api/chat", json={"message": "A dragon ate my bicycle'", "mode": "rag"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertEqual(data["detected_problem"], "out_of_domain")
+        self.assertEqual(data["analysis"]["title"], "Unrecognized / Out-of-Domain Query")
+        self.assertEqual(data["rag_results"]["total_retrieved"], 0)
+        self.assertEqual(len(data.get("similar_cases", [])), 0)
+
     def test_document_preview_endpoint(self):
         payload = {"doc_type": "fir", "name": "Test User", "station": "Civil Lines"}
         resp = self.client.post("/api/documents/preview", json=payload)
