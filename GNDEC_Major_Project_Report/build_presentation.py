@@ -410,17 +410,17 @@ def build_slide_3(prs):
     # 3 Distinct Objective Cards (Exact Verbatim Text)
     objs = [
         ("01",
-         "To develop an interface that understands the legal problem of the user and finds the relevant Indian laws, Acts, articles or sections for it.",
+         "To develop an interface that understands users' legal problems and identifies the relevant Indian laws, Acts, articles, or sections.",
          "Technical Realization & Evidence:",
          "Engineered an intuitive natural language input interface powered by a 15,000-dimensional sparse Vector Space Model (VSM) using sublinear TF-IDF weighting over 2,290 verified Supreme Court chunks, returning relevant statutes and precedents in 41.6 milliseconds."),
         
         ("02",
-         "To give legal guidance, tell users about their legal rights, and provide the related emergency or authority contacts.",
+         "To provide legal guidance, legal rights, and relevant emergency or authority contacts.",
          "Technical Realization & Evidence:",
          "Constructed a diagnostic legal rights engine outlining constitutional safeguards (Article 22, Zero FIR under Sec 173 BNSS), step-by-step citizen survival protocols, and emergency tele-helpline routing (Cybercrime 1930, Women 1091, Tele-MANAS 14416)."),
         
         ("03",
-         "To develop a document generation module that takes basic case details from the user and creates a properly formatted legal application that can be used in legal proceedings.",
+         "To develop an automated document-generation module that collects basic case details and creates formatted legal applications for users to be used for legal proceedings.",
          "Technical Realization & Evidence:",
          "Implemented a dual-layer document studio featuring real-time client preview and server-side ReportLab compilation generating court-admissible vector PDFs for First Information Reports, Section 80 CPC Notices, Sworn Affidavits, and Consumer Complaints.")
     ]
@@ -757,7 +757,7 @@ def build_slide_7(prs):
     p.space_after = Pt(8)
 
     techs = [
-        ("• Presentation Layer:", "React 18 SPA, Tailwind CSS, Lucide React, Web Speech Voice API."),
+        ("• Presentation Layer:", "React 18 SPA, Glassmorphic Modular CSS, Lucide React, Web Speech Voice API."),
         ("• Application Gateway:", "Python 3.14, Flask 3.0 REST API, CORS middleware, Gunicorn."),
         ("• Scientific & NLP Core:", "Scikit-learn, SciPy Compressed Sparse Row (CSR), NumPy."),
         ("• AI Synthesis Engine:", "Google Gemini 1.5 Flash (Hybrid) + Local Deterministic Fallback."),
